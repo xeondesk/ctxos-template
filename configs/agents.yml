@@ -1,0 +1,95 @@
+# Configuration for CtxOS Agents
+
+agents:
+  # Context Summarizer Agent
+  context_summarizer:
+    enabled: true
+    version: "1.0.0"
+    class: "agents.agents.context_summarizer.ContextSummarizer"
+    
+    # Configuration parameters
+    max_risks: 5              # Maximum risks to include in summary
+    max_exposures: 5          # Maximum exposures to include
+    max_anomalies: 3          # Maximum anomalies to include
+    timeout: 30               # Timeout in seconds per analysis
+    
+    # MCP Integration
+    mcp_enabled: true
+    mcp_priority: 1           # Execution priority in pipeline (1=first)
+  
+  # Gap Detector Agent (Future)
+  gap_detector:
+    enabled: false
+    version: "1.0.0"
+    class: "agents.agents.gap_detector.GapDetector"
+    timeout: 30
+    mcp_enabled: true
+    mcp_priority: 2
+  
+  # Hypothesis Generator Agent (Future)
+  hypothesis_generator:
+    enabled: false
+    version: "1.0.0"
+    class: "agents.agents.hypothesis_generator.HypothesisGenerator"
+    timeout: 30
+    mcp_enabled: true
+    mcp_priority: 3
+  
+  # Explainability Agent (Future)
+  explainability:
+    enabled: false
+    version: "1.0.0"
+    class: "agents.agents.explainability.ExplainabilityAgent"
+    timeout: 30
+    mcp_enabled: true
+    mcp_priority: 4
+
+# Pipelines
+pipelines:
+  # Full Analysis Pipeline
+  full_analysis:
+    enabled: true
+    description: "Complete multi-agent analysis"
+    agents:
+      - context_summarizer
+      - gap_detector
+      - hypothesis_generator
+      - explainability
+    parallel: false           # Execute sequentially
+    timeout: 120              # Total pipeline timeout
+  
+  # Quick Assessment Pipeline
+  quick_assessment:
+    enabled: true
+    description: "Fast assessment with Context Summarizer only"
+    agents:
+      - context_summarizer
+    parallel: false
+    timeout: 30
+  
+  # Parallel Analysis Pipeline
+  parallel_analysis:
+    enabled: false
+    description: "Run all agents in parallel"
+    agents:
+      - context_summarizer
+      - gap_detector
+      - hypothesis_generator
+      - explainability
+    parallel: true
+    timeout: 60
+
+# Audit Logging Configuration
+audit:
+  enabled: true
+  log_level: "INFO"           # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  max_events: 10000           # Maximum events to store in memory
+  persistence: false          # TODO: Enable database persistence
+  
+# Global Agent Settings
+global:
+  async_enabled: true
+  default_timeout: 30
+  retry_on_failure: true
+  max_retries: 3
+  retry_delay: 1              # Seconds between retries

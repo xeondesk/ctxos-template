@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: src/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -85,7 +85,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: src/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install Poetry
         uses: snok/install-poetry@v1

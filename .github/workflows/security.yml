@@ -148,7 +148,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: src/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -246,17 +246,16 @@ jobs:
       - name: Check if Checkov results exist
         id: check_checkov
         run: |
-          if [ -f 'checkov-sarif-results/results.sarif' ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
+          mkdir -p checkov-sarif-results
+          if [ ! -f 'checkov-sarif-results/results.sarif' ]; then
             echo "Checkov SARIF file not found, creating empty file"
             echo '{"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": []}' > checkov-sarif-results/results.sarif
           fi
+          echo "exists=true" >> $GITHUB_OUTPUT
 
       - name: Upload Checkov results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: steps.check_checkov.outputs.exists == 'true'
         with:
           sarif_file: 'checkov-sarif-results/results.sarif'
 

@@ -1,0 +1,237 @@
+name: Code Formatting & Linting
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Auto-format code on push to main/develop
+  auto-format:
+    name: Auto-format Code
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+          cd src && npm ci
+
+      - name: Format Python code
+        run: |
+          poetry run black core/ api/ engines/ collectors/ normalizers/ agents/ cli/
+          poetry run isort core/ api/ engines/ collectors/ normalizers/ agents/ cli/
+
+      - name: Format TypeScript code
+        run: |
+          cd src
+          npm run format
+          npx prettier --write .
+
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "🎨 Auto-format code [skip ci]"
+          git push
+
+  # Linting checks
+  lint-checks:
+    name: Linting Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+          cd src && npm ci
+
+      - name: Run Python linting
+        run: |
+          echo "🐍 Running Python linting..."
+          
+          # Flake8
+          echo "Running flake8..."
+          poetry run flake8 core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          
+          # Black formatting check
+          echo "Checking Black formatting..."
+          poetry run black --check --diff core/ api/ engines/ collectors/ normalizers/ agents/ cli/
+          
+          # isort import sorting
+          echo "Checking isort..."
+          poetry run isort --check-only --diff core/ api/ engines/ collectors/ normalizers/ agents/ cli/
+          
+          # MyPy type checking
+          echo "Running MyPy..."
+          poetry run mypy core/ api/ engines/ collectors/ normalizers/ agents/ cli/ || true
+
+      - name: Run TypeScript linting
+        run: |
+          echo "⚛️ Running TypeScript linting..."
+          cd src
+          
+          # ESLint
+          echo "Running ESLint..."
+          npm run lint
+          
+          # Prettier formatting check
+          echo "Checking Prettier formatting..."
+          npx prettier --check .
+          
+          # TypeScript compiler check
+          echo "Running TypeScript compiler..."
+          npm run type-check
+
+      - name: Generate linting report
+        if: failure()
+        run: |
+          echo "# Linting Report" > linting-report.md
+          echo "" >> linting-report.md
+          echo "## Failed Checks" >> linting-report.md
+          echo "" >> linting-report.md
+          echo "Please fix the linting issues above and push again." >> linting-report.md
+          echo "" >> linting-report.md
+          echo "### Quick Fix Commands" >> linting-report.md
+          echo "" >> linting-report.md
+          echo "```bash" >> linting-report.md
+          echo "# Python" >> linting-report.md
+          echo "poetry run black core/ api/ engines/ collectors/ normalizers/ agents/ cli/" >> linting-report.md
+          echo "poetry run isort core/ api/ engines/ collectors/ normalizers/ agents/ cli/" >> linting-report.md
+          echo "" >> linting-report.md
+          echo "# TypeScript" >> linting-report.md
+          echo "cd src" >> linting-report.md
+          echo "npm run format" >> linting-report.md
+          echo "npx prettier --write ." >> linting-report.md
+          echo "```" >> linting-report.md
+
+      - name: Upload linting report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linting-report
+          path: linting-report.md
+
+      - name: Comment PR with linting issues
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('linting-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  # Pre-commit hooks validation
+  pre-commit-validation:
+    name: Pre-commit Hooks Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit on all files
+        run: |
+          pre-commit run --all-files || true
+
+  # Documentation linting
+  docs-lint:
+    name: Documentation Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install documentation tools
+        run: pip install markdownlint-cli2 doc8
+
+      - name: Lint Markdown files
+        run: |
+          markdownlint-cli2 "README.md" "docs/**/*.md" "*.md" || true
+
+      - name: Lint documentation (if using Sphinx)
+        run: |
+          if [ -f "docs/conf.py" ]; then
+            doc8 docs/ || true
+          fi
+
+      - name: Check for broken links
+        run: |
+          # Check for broken internal links in Markdown
+          find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | xargs grep -l "\[.*\](.*.md)" | while read file; do
+            echo "Checking links in $file"
+            # Add link checking logic here
+          done

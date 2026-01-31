@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # Development PostgreSQL
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: ctxos-postgres-dev
+    environment:
+      POSTGRES_DB: ctxos_dev
+      POSTGRES_USER: ctxos_dev_user
+      POSTGRES_PASSWORD: ctxos_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    networks:
+      - ctxos-dev-network
+    restart: unless-stopped
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: ctxos-redis-dev
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - ctxos-dev-network
+    restart: unless-stopped
+
+  # Development Elasticsearch
+  elasticsearch-dev:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ctxos-elasticsearch-dev
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    ports:
+      - "9201:9200"
+    volumes:
+      - elasticsearch_dev_data:/usr/share/elasticsearch/data
+    networks:
+      - ctxos-dev-network
+    restart: unless-stopped
+
+  # Development API (with hot reload)
+  ctxos-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ctxos-api-dev
+    environment:
+      - DATABASE_URL=postgresql://ctxos_dev_user:ctxos_dev_password@postgres-dev:5432/ctxos_dev
+      - REDIS_URL=redis://redis-dev:6379/0
+      - ELASTICSEARCH_URL=http://elasticsearch-dev:9200
+      - PYTHONPATH=/app
+      - LOG_LEVEL=DEBUG
+      - FLASK_ENV=development
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      - postgres-dev
+      - redis-dev
+      - elasticsearch-dev
+    networks:
+      - ctxos-dev-network
+    restart: unless-stopped
+
+  # Development Frontend (with hot reload)
+  ctxos-frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    container_name: ctxos-frontend-dev
+    environment:
+      - REACT_APP_API_URL=http://localhost:8001
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - /app/node_modules
+    depends_on:
+      - ctxos-api-dev
+    networks:
+      - ctxos-dev-network
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  elasticsearch_dev_data:
+    driver: local
+
+networks:
+  ctxos-dev-network:
+    driver: bridge

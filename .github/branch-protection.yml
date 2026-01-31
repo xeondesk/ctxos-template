@@ -1,0 +1,70 @@
+# Branch Protection Rules for CtxOS
+# This file defines the branch protection settings for the repository
+
+# Main branch protection
+main:
+  required_status_checks:
+    strict: true
+    contexts:
+      - "Code Quality Gates"
+      - "CodeQL Analysis (python)"
+      - "CodeQL Analysis (javascript)"
+      - "Container Security Scan"
+      - "Secret Scanning"
+      - "Dependency Security Scan"
+      - "Static Application Security Testing (SAST)"
+      - "Infrastructure Security Scan"
+      - "Security Compliance Check"
+      - "Test Suite (python-3.10, node-18)"
+      - "Test Suite (python-3.10, node-20)"
+      - "Test Suite (python-3.11, node-18)"
+      - "Test Suite (python-3.11, node-20)"
+      - "Build & Docker"
+      - "Integration Tests"
+      - "Quality Gate Enforcement"
+
+  enforce_admins: true
+  required_pull_request_reviews:
+    required_approving_review_count: 2
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: true
+    require_last_push_approval: true
+    dismissal_restrictions:
+      users: []
+      teams: ["maintainers"]
+
+  restrictions:
+    users: []
+    teams: ["maintainers"]
+
+  allow_force_pushes: false
+  allow_deletions: false
+
+# Develop branch protection
+develop:
+  required_status_checks:
+    strict: true
+    contexts:
+      - "Code Quality Gates"
+      - "CodeQL Analysis (python)"
+      - "CodeQL Analysis (javascript)"
+      - "Container Security Scan"
+      - "Secret Scanning"
+      - "Test Suite (python-3.10, node-18)"
+      - "Test Suite (python-3.11, node-20)"
+      - "Build & Docker"
+      - "Quality Gate Enforcement"
+
+  enforce_admins: false
+  required_pull_request_reviews:
+    required_approving_review_count: 1
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: false
+    require_last_push_approval: true
+
+  restrictions:
+    users: []
+    teams: ["developers", "maintainers"]
+
+  allow_force_pushes: false
+  allow_deletions: false

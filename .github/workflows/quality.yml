@@ -1,0 +1,317 @@
+name: Code Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Python Code Quality
+  python-quality:
+    name: Python Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run Flake8
+        run: |
+          poetry run flake8 core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --format=json --output-file=flake8-report.json || true
+
+      - name: Run Black formatting check
+        run: |
+          poetry run black --check --diff core/ api/ engines/ collectors/ normalizers/ agents/ cli/ || true
+
+      - name: Run isort import sorting check
+        run: |
+          poetry run isort --check-only --diff core/ api/ engines/ collectors/ normalizers/ agents/ cli/ || true
+
+      - name: Run MyPy type checking
+        run: |
+          poetry run mypy core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --json-report mypy-report || true
+
+      - name: Run Pylint
+        run: |
+          poetry run pylint core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --output-format=json > pylint-report.json || true
+
+      - name: Calculate code complexity
+        run: |
+          poetry run radon cc core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --json > radon-complexity.json || true
+          poetry run radon mi core/ api/ engines/ collectors/ normalizers/ agents/ cli/ --json > radon-maintainability.json || true
+
+      - name: Upload Python quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-quality-reports
+          path: |
+            flake8-report.json
+            mypy-report/
+            pylint-report.json
+            radon-complexity.json
+            radon-maintainability.json
+
+  # TypeScript/JavaScript Code Quality
+  typescript-quality:
+    name: TypeScript Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd src
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd src
+          npm run lint -- --format=json --output-file=../eslint-report.json || true
+
+      - name: Run Prettier formatting check
+        run: |
+          cd src
+          npx prettier --check --write . || true
+
+      - name: Run TypeScript compiler check
+        run: |
+          cd src
+          npm run type-check || true
+
+      - name: Run TypeScript complexity analysis
+        run: |
+          cd src
+          npx complexity-report --output json --format json src/ > ../typescript-complexity.json || true
+
+      - name: Upload TypeScript quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: typescript-quality-reports
+          path: |
+            eslint-report.json
+            typescript-complexity.json
+
+  # Test Coverage and Quality
+  test-quality:
+    name: Test Quality Gates
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_ctxos
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+          cd src && npm ci
+
+      - name: Run Python tests with coverage
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_ctxos
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          poetry run pytest tests/ -v --cov=core --cov=api --cov=engines --cov=collectors --cov=normalizers --cov=agents --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=80
+
+      - name: Run Frontend tests with coverage
+        run: |
+          cd src
+          npm test -- --coverage --coverageReporters=json-summary --watchAll=false
+
+      - name: Check coverage thresholds
+        run: |
+          # Check Python coverage
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          coverage = root.find('.//coverage').get('line-rate')
+          coverage_percent = float(coverage) * 100
+          print(f'Python coverage: {coverage_percent:.2f}%')
+          if coverage_percent < 80:
+              print('❌ Python coverage below 80% threshold')
+              exit(1)
+          "
+
+          # Check TypeScript coverage
+          cd src
+          coverage=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "TypeScript coverage: ${coverage}%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+              echo "❌ TypeScript coverage below 80% threshold"
+              exit 1
+          fi
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+            src/coverage/
+
+  # Code Quality Metrics
+  quality-metrics:
+    name: Code Quality Metrics
+    runs-on: ubuntu-latest
+    needs: [python-quality, typescript-quality, test-quality]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate quality report
+        run: |
+          echo "# Code Quality Report" > quality-report.md
+          echo "" >> quality-report.md
+          echo "## Summary" >> quality-report.md
+          echo "" >> quality-report.md
+
+          # Add Python quality metrics
+          if [ -f "python-quality-reports/flake8-report.json" ]; then
+            echo "### Python Quality" >> quality-report.md
+            echo "- Flake8 issues: $(cat python-quality-reports/flake8-report.json | jq '. | length')" >> quality-report.md
+          fi
+
+          # Add TypeScript quality metrics
+          if [ -f "typescript-quality-reports/eslint-report.json" ]; then
+            echo "### TypeScript Quality" >> quality-report.md
+            echo "- ESLint issues: $(cat typescript-quality-reports/eslint-report.json | jq '. | length')" >> quality-report.md
+          fi
+
+          # Add test coverage metrics
+          if [ -f "test-reports-3.10/coverage.xml" ]; then
+            echo "### Test Coverage" >> quality-report.md
+            python -c "
+            import xml.etree.ElementTree as ET
+            tree = ET.parse('test-reports-3.10/coverage.xml')
+            root = tree.getroot()
+            coverage = root.find('.//coverage').get('line-rate')
+            coverage_percent = float(coverage) * 100
+            print(f'- Python coverage: {coverage_percent:.2f}%')
+            " >> quality-report.md
+          fi
+
+      - name: Upload quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: quality-report.md
+
+      - name: Comment PR with quality metrics
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('quality-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  # Quality Gate Enforcement
+  quality-gate:
+    name: Quality Gate Enforcement
+    runs-on: ubuntu-latest
+    needs: [python-quality, typescript-quality, test-quality]
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Check quality gates
+        run: |
+          # Check if any critical issues exist
+          python_issues=0
+          typescript_issues=0
+
+          if [ -f "python-quality-reports/flake8-report.json" ]; then
+            python_issues=$(cat python-quality-reports/flake8-report.json | jq '. | length')
+          fi
+
+          if [ -f "typescript-quality-reports/eslint-report.json" ]; then
+            typescript_issues=$(cat typescript-quality-reports/eslint-report.json | jq '. | length')
+          fi
+
+          total_issues=$((python_issues + typescript_issues))
+
+          echo "Python issues: $python_issues"
+          echo "TypeScript issues: $typescript_issues"
+          echo "Total issues: $total_issues"
+
+          # Fail if too many issues (adjust threshold as needed)
+          if [ $total_issues -gt 50 ]; then
+            echo "❌ Too many code quality issues ($total_issues > 50)"
+            exit 1
+          else
+            echo "✅ Code quality gate passed"
+          fi

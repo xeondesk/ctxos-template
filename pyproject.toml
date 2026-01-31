@@ -40,6 +40,10 @@ flake8 = "^6.0"
 isort = "^5.12"
 mypy = "^1.5"
 pytest-xdist = "^3.0"
+bandit = "^1.7"
+safety = "^2.3"
+semgrep = "^1.45"
+autoflake = "^2.2"
 
 [tool.poetry.scripts]
 ctxos = "cli.ctxos:main"

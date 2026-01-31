@@ -1,0 +1,114 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      - id: debug-statements
+      - id: check-builddir
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: https://github.com/psf/black
+    rev: 23.7.0
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^(core|api|engines|collectors|normalizers|agents|cli)/
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        files: ^(core|api|engines|collectors|normalizers|agents|cli)/
+        args: ["--profile", "black"]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        files: ^(core|api|engines|collectors|normalizers|agents|cli)/
+        args: [--max-line-length=100, --extend-ignore=E203,W503]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        files: ^(core|api|engines|collectors|normalizers|agents|cli)/
+        additional_dependencies: [types-PyYAML, types-requests]
+        args: [--ignore-missing-imports]
+
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        files: ^(core|api|engines|collectors|normalizers|agents|cli)/
+        args: [-r, ., -f, json, -o, bandit-report.json]
+        pass_filenames: false
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        args: [--fix]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.47.0
+    hooks:
+      - id: eslint
+        files: ^src/.*\.(js|ts|tsx)$
+        types: [file]
+        additional_dependencies:
+          - eslint@8.47.0
+          - "@typescript-eslint/eslint-plugin@6.4.0"
+          - "@typescript-eslint/parser@6.4.0"
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        files: ^src/.*\.(js|ts|tsx|json|css|md)$
+        types_or: [javascript, tsx, ts, json, css, markdown]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+
+  - repo: https://github.com/antonbabenkov/pre-commit-hooks
+    rev: v0.3.0
+    hooks:
+      - id: remove-crlf
+      - id: remove-tabs
+
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest-check
+        entry: poetry run pytest tests/ --tb=short
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: poetry-check
+        name: poetry-check
+        entry: poetry check
+        language: system
+        pass_filenames: false
+        files: ^pyproject\.toml$
+
+      - id: npm-audit
+        name: npm-audit
+        entry: cd src && npm audit --audit-level=moderate
+        language: system
+        pass_filenames: false
+        files: ^package(-lock)?\.json$

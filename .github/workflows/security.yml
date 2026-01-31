@@ -40,95 +40,95 @@ jobs:
           category: "/language:${{matrix.language}}"
 
   # Container Security Scanning
-container-scan:
-  name: Container Security Scan
-  runs-on: ubuntu-latest
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
 
-  permissions:
-    contents: read
-    security-events: write
+    permissions:
+      contents: read
+      security-events: write
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        load: true
-        tags: ctxos:test
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ctxos:test
 
-    - name: Run Trivy image scan → SARIF
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        scan-type: image
-        image-ref: ctxos:test
-        format: sarif
-        output: trivy-container.sarif
-        severity: CRITICAL,HIGH
-        exit-code: 0
+      - name: Run Trivy image scan → SARIF
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: image
+          image-ref: ctxos:test
+          format: sarif
+          output: trivy-container.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
 
-    - name: Verify SARIF output
-      run: |
-        if [ ! -s trivy-container.sarif ]; then
-          echo "❌ Container SARIF missing or empty"
-          ls -lah
-          exit 1
-        fi
+      - name: Verify SARIF output
+        run: |
+          if [ ! -s trivy-container.sarif ]; then
+            echo "❌ Container SARIF missing or empty"
+            ls -lah
+            exit 1
+          fi
 
-    - name: Upload container scan results
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: trivy-container.sarif
-        wait-for-processing: true
+      - name: Upload container scan results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-container.sarif
+          wait-for-processing: true
 
 
-# Secret Scanning
-secret-scan:
-  name: Secret Scanning
-  runs-on: ubuntu-latest
+  # Secret Scanning
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
 
-  permissions:
-    contents: read
-    security-events: write
+    permissions:
+      contents: read
+      security-events: write
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Run Trivy secret scan → SARIF
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        scan-type: fs
-        scanners: secret
-        format: sarif
-        output: trivy-secrets.sarif
-        exit-code: 0
+      - name: Run Trivy secret scan → SARIF
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          scanners: secret
+          format: sarif
+          output: trivy-secrets.sarif
+          exit-code: 0
 
-    - name: Verify SARIF output
-      run: |
-        if [ ! -s trivy-secrets.sarif ]; then
-          echo "❌ Secret SARIF missing or empty"
-          ls -lah
-          exit 1
-        fi
+      - name: Verify SARIF output
+        run: |
+          if [ ! -s trivy-secrets.sarif ]; then
+            echo "❌ Secret SARIF missing or empty"
+            ls -lah
+            exit 1
+          fi
 
-    - name: Upload Trivy secret scan results
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: trivy-secrets.sarif
-        wait-for-processing: true
+      - name: Upload Trivy secret scan results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-secrets.sarif
+          wait-for-processing: true
 
-    - name: Run Gitleaks (blocking)
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Gitleaks (blocking)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Dependency Security Scanning
   dependency-scan:

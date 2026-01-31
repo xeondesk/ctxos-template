@@ -58,7 +58,7 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          file: Dockerfile.api
           load: true
           tags: ctxos:test
 

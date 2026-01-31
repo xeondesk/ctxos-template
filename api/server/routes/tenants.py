@@ -8,11 +8,17 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.tenant import (
-    TenantCreate, TenantUpdate, TenantResponse,
-    ProjectCreate, ProjectUpdate, ProjectResponse,
-    TenantMemberCreate, TenantMemberUpdate,
-    ProjectMemberCreate, ProjectMemberUpdate,
-    UserContext
+    TenantCreate,
+    TenantUpdate,
+    TenantResponse,
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectResponse,
+    TenantMemberCreate,
+    TenantMemberUpdate,
+    ProjectMemberCreate,
+    ProjectMemberUpdate,
+    UserContext,
 )
 from ..services.tenant_service import TenantService
 from ..middleware.auth import get_current_user
@@ -32,7 +38,7 @@ def get_tenant_service(db: Session = Depends(get_db)) -> TenantService:
 async def create_tenant(
     tenant_data: TenantCreate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Create a new tenant."""
     return await tenant_service.create_tenant(tenant_data, current_user.id)
@@ -41,7 +47,7 @@ async def create_tenant(
 @router.get("/", response_model=List[TenantResponse])
 async def list_user_tenants(
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """List all tenants accessible to the current user."""
     return await tenant_service.list_user_tenants(current_user.id)
@@ -51,7 +57,7 @@ async def list_user_tenants(
 async def get_tenant(
     tenant_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Get tenant by ID."""
     return await tenant_service.get_tenant(tenant_id)
@@ -62,7 +68,7 @@ async def update_tenant(
     tenant_id: int,
     tenant_data: TenantUpdate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Update tenant."""
     return await tenant_service.update_tenant(tenant_id, tenant_data, current_user.id)
@@ -72,7 +78,7 @@ async def update_tenant(
 async def delete_tenant(
     tenant_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Delete tenant (soft delete)."""
     await tenant_service.delete_tenant(tenant_id, current_user.id)
@@ -84,7 +90,7 @@ async def add_tenant_member(
     tenant_id: int,
     member_data: TenantMemberCreate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Add member to tenant."""
     member_data.tenant_id = tenant_id
@@ -98,7 +104,7 @@ async def update_tenant_member(
     user_id: int,
     member_data: TenantMemberUpdate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Update tenant member role."""
     await tenant_service.update_tenant_member(tenant_id, user_id, member_data, current_user.id)
@@ -110,19 +116,21 @@ async def remove_tenant_member(
     tenant_id: int,
     user_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Remove member from tenant."""
     await tenant_service.remove_tenant_member(tenant_id, user_id, current_user.id)
 
 
 # Project Routes
-@router.post("/{tenant_id}/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{tenant_id}/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_project(
     tenant_id: int,
     project_data: ProjectCreate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Create a new project in tenant."""
     project_data.tenant_id = tenant_id
@@ -133,7 +141,7 @@ async def create_project(
 async def list_tenant_projects(
     tenant_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """List all projects in tenant."""
     return await tenant_service.list_tenant_projects(tenant_id, current_user.id)
@@ -143,7 +151,7 @@ async def list_tenant_projects(
 async def get_project(
     project_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Get project by ID."""
     return await tenant_service.get_project(project_id)
@@ -154,7 +162,7 @@ async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Update project."""
     return await tenant_service.update_project(project_id, project_data, current_user.id)
@@ -164,7 +172,7 @@ async def update_project(
 async def delete_project(
     project_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Delete project (soft delete)."""
     await tenant_service.delete_project(project_id, current_user.id)
@@ -176,7 +184,7 @@ async def add_project_member(
     project_id: int,
     member_data: ProjectMemberCreate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Add member to project."""
     member_data.project_id = project_id
@@ -190,7 +198,7 @@ async def update_project_member(
     user_id: int,
     member_data: ProjectMemberUpdate,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Update project member role."""
     await tenant_service.update_project_member(project_id, user_id, member_data, current_user.id)
@@ -202,7 +210,7 @@ async def remove_project_member(
     project_id: int,
     user_id: int,
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Remove member from project."""
     await tenant_service.remove_project_member(project_id, user_id, current_user.id)
@@ -212,7 +220,7 @@ async def remove_project_member(
 @router.get("/context/user", response_model=UserContext)
 async def get_user_context(
     current_user: User = Depends(get_current_user),
-    tenant_service: TenantService = Depends(get_tenant_service)
+    tenant_service: TenantService = Depends(get_tenant_service),
 ):
     """Get complete user context including all accessible tenants and projects."""
     return await tenant_service.get_user_context(current_user.id)

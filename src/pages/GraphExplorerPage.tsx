@@ -6,14 +6,14 @@ import {
   ArrowPathIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import { GraphNode, GraphEdge, EntityFilter } from '@/types';
-import { apiClient } from '@/api';
+import { GraphNode, GraphEdge, EntityFilter } from 'types';
+import { apiClient } from 'api';
 
 // Components
-import GraphVisualization from '@/components/GraphVisualization';
-import EntityDetails from '@/components/EntityDetails';
-import FilterPanel from '@/components/FilterPanel';
-import GraphControls from '@/components/GraphControls';
+import GraphVisualization from 'components/GraphVisualization';
+import EntityDetails from 'components/EntityDetails';
+import FilterPanel from 'components/FilterPanel';
+import GraphControls from 'components/GraphControls';
 
 const GraphExplorerPage: React.FC = () => {
   // State
@@ -245,7 +245,7 @@ const GraphExplorerPage: React.FC = () => {
     if (filter.score_range) {
       const [minScore, maxScore] = filter.score_range;
       filteredNodes = filteredNodes.filter(node =>
-        node.data.score >= minScore && node.data.score <= maxScore
+        typeof node.data.score === 'number' && node.data.score >= minScore && node.data.score <= maxScore
       );
     }
 
@@ -355,7 +355,7 @@ const GraphExplorerPage: React.FC = () => {
         <div className="flex-1 relative">
           <GraphControls
             layout={layout}
-            onLayoutChange={setLayout}
+            onLayoutChange={(l: string) => setLayout(l as 'force' | 'hierarchical' | 'circular')}
             onZoomIn={() => console.log('Zoom in')}
             onZoomOut={() => console.log('Zoom out')}
             onFitToScreen={() => console.log('Fit to screen')}

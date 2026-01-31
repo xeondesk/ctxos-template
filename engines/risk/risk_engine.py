@@ -13,6 +13,7 @@ from core.models import Entity, Signal, EntityType, SignalType, SignalSeverity
 @dataclass
 class RiskFactors:
     """Risk assessment factors."""
+
     vulnerability_count: int = 0
     open_ports: int = 0
     exposed_credentials: int = 0
@@ -50,11 +51,11 @@ class RiskEngine(BaseEngine):
 
     def score(self, entity: Entity, context: Any = None) -> ScoringResult:
         """Score entity risk.
-        
+
         Args:
             entity: Entity to score
             context: Optional context with signals
-            
+
         Returns:
             ScoringResult with risk score
         """
@@ -64,22 +65,22 @@ class RiskEngine(BaseEngine):
         try:
             # Extract risk factors
             factors = self._extract_risk_factors(entity, context)
-            
+
             # Calculate base scores
             scores = self._calculate_component_scores(factors)
-            
+
             # Aggregate with weights
             base_score = self._aggregate_scores(scores)
-            
+
             # Apply decay for old entities
             final_score = self._apply_age_decay(base_score, factors.age_days)
-            
+
             # Determine severity
             severity = ScoringUtils.score_to_severity(final_score)
-            
+
             # Generate recommendations
             recommendations = self._generate_recommendations(factors, final_score)
-            
+
             return ScoringResult(
                 engine_name=self.name,
                 entity_id=entity.id,
@@ -107,27 +108,27 @@ class RiskEngine(BaseEngine):
 
     def _extract_risk_factors(self, entity: Entity, context: Any) -> RiskFactors:
         """Extract risk factors from entity and context.
-        
+
         Args:
             entity: Entity to analyze
             context: Optional context with signals
-            
+
         Returns:
             RiskFactors object
         """
         factors = RiskFactors()
-        
+
         # Calculate entity age
         if entity.discovered_at:
             factors.age_days = (datetime.utcnow() - entity.discovered_at).days
-        
+
         if entity.last_seen_at:
             factors.last_seen_days = (datetime.utcnow() - entity.last_seen_at).days
-        
+
         # Extract signals if context provided
-        if context and hasattr(context, 'get_signals_for_entity'):
+        if context and hasattr(context, "get_signals_for_entity"):
             signals = context.get_signals_for_entity(entity.id)
-            
+
             for signal in signals:
                 if signal.signal_type == SignalType.VULNERABILITY:
                     factors.vulnerability_count += 1
@@ -145,54 +146,54 @@ class RiskEngine(BaseEngine):
                     factors.certificate_issues += 1
                 elif signal.signal_type == SignalType.CONFIGURATION:
                     factors.configuration_issues += 1
-        
+
         return factors
 
     def _calculate_component_scores(self, factors: RiskFactors) -> Dict[str, float]:
         """Calculate component risk scores.
-        
+
         Args:
             factors: RiskFactors object
-            
+
         Returns:
             Dictionary of component scores
         """
         scores = {}
-        
+
         # Vulnerability score (0-100)
         vuln_score = min(factors.vulnerability_count * 10, 100)
         scores["vulnerability"] = vuln_score
-        
+
         # Open ports score (0-100)
         ports_score = min(factors.open_ports * 15, 100)
         scores["open_ports"] = ports_score
-        
+
         # Exposure score (0-100)
         exposure_factors = (
-            factors.exposed_credentials * 30 +
-            factors.data_breach_mentions * 25 +
-            factors.certificate_issues * 20
+            factors.exposed_credentials * 30
+            + factors.data_breach_mentions * 25
+            + factors.certificate_issues * 20
         )
         exposure_score = min(exposure_factors, 100)
         scores["exposure"] = exposure_score
-        
+
         # Activity score (0-100)
         activity_factors = (
-            factors.suspicious_activity * 25 +
-            factors.malware_indicators * 30 +
-            factors.configuration_issues * 15
+            factors.suspicious_activity * 25
+            + factors.malware_indicators * 30
+            + factors.configuration_issues * 15
         )
         activity_score = min(activity_factors, 100)
         scores["activity"] = activity_score
-        
+
         return scores
 
     def _aggregate_scores(self, scores: Dict[str, float]) -> float:
         """Aggregate component scores with weights.
-        
+
         Args:
             scores: Component scores
-            
+
         Returns:
             Aggregated score
         """
@@ -206,11 +207,11 @@ class RiskEngine(BaseEngine):
 
     def _apply_age_decay(self, score: float, age_days: int) -> float:
         """Apply age decay to score.
-        
+
         Args:
             score: Base score
             age_days: Age of entity in days
-            
+
         Returns:
             Decay-adjusted score
         """
@@ -219,48 +220,46 @@ class RiskEngine(BaseEngine):
         adjusted_score = score * (1 - min(decay_factor, 0.5))  # Max 50% decay
         return adjusted_score
 
-    def _generate_recommendations(
-        self, factors: RiskFactors, score: float
-    ) -> List[str]:
+    def _generate_recommendations(self, factors: RiskFactors, score: float) -> List[str]:
         """Generate risk mitigation recommendations.
-        
+
         Args:
             factors: RiskFactors object
             score: Final risk score
-            
+
         Returns:
             List of recommendations
         """
         recommendations = []
-        
+
         if factors.vulnerability_count > 5:
             recommendations.append("High vulnerability count detected - prioritize patching")
-        
+
         if factors.exposed_credentials > 0:
             recommendations.append("Exposed credentials found - rotate compromised credentials")
-        
+
         if factors.open_ports > 3:
             recommendations.append("Multiple open ports detected - review firewall rules")
-        
+
         if factors.malware_indicators > 0:
             recommendations.append("Malware indicators present - initiate incident response")
-        
+
         if factors.data_breach_mentions > 0:
             recommendations.append("Data breach mention found - investigate and assess impact")
-        
+
         if score >= 80:
             recommendations.append("CRITICAL: Immediate intervention required")
         elif score >= 60:
             recommendations.append("HIGH: Schedule remediation within 1-2 weeks")
-        
+
         return recommendations
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate risk engine configuration.
-        
+
         Args:
             config: Configuration to validate
-            
+
         Returns:
             True if valid
         """
@@ -270,28 +269,28 @@ class RiskEngine(BaseEngine):
             "exposure_weight",
             "activity_weight",
         ]
-        
+
         # Check required keys
         if not all(key in config for key in required_keys):
             return False
-        
+
         # Weights should sum to ~100
         weight_sum = sum(
-            config.get(f"{k}_weight", 0) for k in [
+            config.get(f"{k}_weight", 0)
+            for k in [
                 "vulnerability",
                 "open_ports",
                 "exposure",
                 "activity",
             ]
         )
-        
+
         if weight_sum != 100:
             return False
-        
+
         return True
 
 
 def demo_risk():
     """Demo function for risk engine."""
-    print('Risk engine calculating demo risk')
-
+    print("Risk engine calculating demo risk")

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
-    
+
     app = FastAPI(
         title="CtxOS API",
         description="Context-driven OS Intelligence and Analysis API",
@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
-    
+
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -44,13 +44,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # GZIP compression
     app.add_middleware(GZIPMiddleware, minimum_size=1000)
-    
+
     # RBAC middleware
     app.add_middleware(RBACMiddleware)
-    
+
     # Error handlers
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request, exc):
@@ -61,7 +61,7 @@ def create_app() -> FastAPI:
                 "status_code": exc.status_code,
             },
         )
-    
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request, exc):
         logger.error(f"Unhandled exception: {exc}", exc_info=True)
@@ -72,13 +72,13 @@ def create_app() -> FastAPI:
                 "status_code": 500,
             },
         )
-    
+
     # Health check
     @app.get("/health")
     async def health_check():
         """Health check endpoint."""
         return {"status": "healthy", "service": "ctxos-api"}
-    
+
     # Root endpoint
     @app.get("/")
     async def root():
@@ -95,22 +95,22 @@ def create_app() -> FastAPI:
                 "config": "/api/v1/config",
             },
         }
-    
+
     # Include routers
     app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
     app.include_router(scoring.router, prefix="/api/v1", tags=["scoring"])
     app.include_router(analysis.router, prefix="/api/v1", tags=["agents"])
     app.include_router(config_routes.router, prefix="/api/v1", tags=["config"])
-    
+
     # Initialize services on startup
     @app.on_event("startup")
     async def startup_event():
         """Initialize services on application startup."""
         logger.info("Starting CtxOS API server...")
-        
+
         # Initialize orchestrator and register agents
         orchestrator = get_orchestrator()
-        
+
         # Register agents
         agents = [
             ContextSummarizer(name="context_summarizer", version="1.0.0"),
@@ -118,18 +118,26 @@ def create_app() -> FastAPI:
             HypothesisGenerator(name="hypothesis_generator", version="1.0.0"),
             ExplainabilityAgent(name="explainability", version="1.0.0"),
         ]
-        
+
         for agent in agents:
             orchestrator.register_agent(agent)
             logger.info(f"Registered agent: {agent.name}")
-        
+
         # Create default pipelines
         default_pipelines = [
-            ("security_analysis", ["context_summarizer", "gap_detector", "hypothesis_generator"], False),
-            ("full_analysis", ["context_summarizer", "gap_detector", "hypothesis_generator", "explainability"], False),
+            (
+                "security_analysis",
+                ["context_summarizer", "gap_detector", "hypothesis_generator"],
+                False,
+            ),
+            (
+                "full_analysis",
+                ["context_summarizer", "gap_detector", "hypothesis_generator", "explainability"],
+                False,
+            ),
             ("quick_scan", ["context_summarizer", "gap_detector"], True),
         ]
-        
+
         for pipeline_name, agent_names, parallel in default_pipelines:
             pipeline = orchestrator.create_pipeline(pipeline_name, parallel)
             for agent_name in agent_names:
@@ -137,28 +145,28 @@ def create_app() -> FastAPI:
                 if agent:
                     pipeline.add_agent(agent)
             logger.info(f"Created pipeline: {pipeline_name}")
-        
+
         # Test engines
         try:
             risk_engine = get_risk_engine()
             logger.info("Risk engine initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize risk engine: {e}")
-        
+
         logger.info("CtxOS API server startup complete")
-    
+
     @app.on_event("shutdown")
     async def shutdown_event():
         """Cleanup on application shutdown."""
         logger.info("Shutting down CtxOS API server...")
-        
+
         # Cleanup orchestrator
         orchestrator = get_orchestrator()
-        if hasattr(orchestrator, 'shutdown'):
+        if hasattr(orchestrator, "shutdown"):
             await orchestrator.shutdown()
-        
+
         logger.info("CtxOS API server shutdown complete")
-    
+
     return app
 
 
@@ -167,6 +175,7 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
         host="0.0.0.0",

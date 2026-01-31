@@ -3,17 +3,36 @@ Evidence logging and approval workflow API routes.
 """
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Query,
+    UploadFile,
+    File,
+    Form,
+    Request,
+)
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.evidence import (
-    EvidenceCreate, EvidenceUpdate, EvidenceResponse, EvidenceSearch, EvidenceFilter,
-    ApprovalWorkflowCreate, ApprovalWorkflowUpdate, ApprovalWorkflowResponse,
-    ApprovalStepCreate, ApprovalUpdate, ApprovalResponse,
+    EvidenceCreate,
+    EvidenceUpdate,
+    EvidenceResponse,
+    EvidenceSearch,
+    EvidenceFilter,
+    ApprovalWorkflowCreate,
+    ApprovalWorkflowUpdate,
+    ApprovalWorkflowResponse,
+    ApprovalStepCreate,
+    ApprovalUpdate,
+    ApprovalResponse,
     EvidenceAttachmentResponse,
-    ComplianceReport, AuditTrail
+    ComplianceReport,
+    AuditTrail,
 )
 from ..services.evidence_service import EvidenceService
 from ..middleware.auth import get_current_user
@@ -34,13 +53,13 @@ async def create_evidence(
     evidence_data: EvidenceCreate,
     request: Request,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Create new evidence entry."""
     # Get client information
     client_ip = request.client.host
     user_agent = request.headers.get("user-agent")
-    
+
     return await evidence_service.create_evidence(
         evidence_data, current_user.id, client_ip, user_agent
     )
@@ -71,7 +90,7 @@ async def search_evidence(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Search evidence with filters."""
     # Build search parameters
@@ -92,18 +111,18 @@ async def search_evidence(
         created_after=created_after,
         created_before=created_before,
         approved_after=approved_after,
-        approved_before=approved_before
+        approved_before=approved_before,
     )
-    
+
     search_params = EvidenceSearch(
         query=query,
         filters=filters,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
-    
+
     return await evidence_service.search_evidence(search_params, current_user.id)
 
 
@@ -111,7 +130,7 @@ async def search_evidence(
 async def get_evidence(
     evidence_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Get evidence by ID."""
     return await evidence_service.get_evidence(evidence_id)
@@ -122,7 +141,7 @@ async def update_evidence(
     evidence_id: int,
     evidence_data: EvidenceUpdate,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Update evidence."""
     return await evidence_service.update_evidence(evidence_id, evidence_data, current_user.id)
@@ -132,18 +151,20 @@ async def update_evidence(
 async def delete_evidence(
     evidence_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Delete evidence (soft delete by archiving)."""
     await evidence_service.delete_evidence(evidence_id, current_user.id)
 
 
 # Approval Workflow Routes
-@router.post("/workflows", response_model=ApprovalWorkflowResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/workflows", response_model=ApprovalWorkflowResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_approval_workflow(
     workflow_data: ApprovalWorkflowCreate,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Create approval workflow."""
     return await evidence_service.create_approval_workflow(workflow_data, current_user.id)
@@ -153,7 +174,7 @@ async def create_approval_workflow(
 async def get_approval_workflow(
     workflow_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Get approval workflow by ID."""
     return await evidence_service.get_approval_workflow(workflow_id)
@@ -164,7 +185,7 @@ async def create_approval_step(
     workflow_id: int,
     step_data: ApprovalStepCreate,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Create approval step."""
     step_data.workflow_id = workflow_id
@@ -173,16 +194,20 @@ async def create_approval_step(
 
 
 # Approval Routes
-@router.post("/{evidence_id}/approvals", response_model=ApprovalResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{evidence_id}/approvals", response_model=ApprovalResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_approval(
     evidence_id: int,
     workflow_id: int,
     step_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Create approval request."""
-    return await evidence_service.create_approval(evidence_id, workflow_id, step_id, current_user.id)
+    return await evidence_service.create_approval(
+        evidence_id, workflow_id, step_id, current_user.id
+    )
 
 
 @router.put("/approvals/{approval_id}", response_model=ApprovalResponse)
@@ -190,7 +215,7 @@ async def update_approval(
     approval_id: int,
     approval_data: ApprovalUpdate,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Update approval decision."""
     return await evidence_service.update_approval(approval_id, approval_data, current_user.id)
@@ -200,19 +225,23 @@ async def update_approval(
 async def get_approval(
     approval_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Get approval by ID."""
     return await evidence_service.get_approval(approval_id)
 
 
 # Attachment Routes
-@router.post("/{evidence_id}/attachments", response_model=EvidenceAttachmentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{evidence_id}/attachments",
+    response_model=EvidenceAttachmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_attachment(
     evidence_id: int,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Upload attachment to evidence."""
     return await evidence_service.upload_attachment(evidence_id, file, current_user.id)
@@ -222,7 +251,7 @@ async def upload_attachment(
 async def get_attachment(
     attachment_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Get attachment by ID."""
     return await evidence_service.get_attachment(attachment_id)
@@ -236,7 +265,7 @@ async def generate_compliance_report(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Generate compliance report."""
     return await evidence_service.generate_compliance_report(
@@ -248,7 +277,7 @@ async def generate_compliance_report(
 async def get_audit_trail(
     evidence_id: int,
     current_user: User = Depends(get_current_user),
-    evidence_service: EvidenceService = Depends(get_evidence_service)
+    evidence_service: EvidenceService = Depends(get_evidence_service),
 ):
     """Get complete audit trail for evidence."""
     return await evidence_service.get_audit_trail(evidence_id)

@@ -23,6 +23,7 @@ from agents.mcp_orchestrator import get_orchestrator, MCPOrchestrator
 
 class MCPMessageType(Enum):
     """MCP message types."""
+
     REQUEST = "request"
     RESPONSE = "response"
     NOTIFICATION = "notification"
@@ -31,6 +32,7 @@ class MCPMessageType(Enum):
 
 class MCPMethod(Enum):
     """MCP method names."""
+
     ANALYZE = "analyze"
     EXECUTE_PIPELINE = "execute_pipeline"
     LIST_AGENTS = "list_agents"
@@ -43,13 +45,14 @@ class MCPMethod(Enum):
 @dataclass
 class MCPMessage:
     """MCP protocol message."""
+
     id: Optional[str]
     method: MCPMethod
     params: Dict[str, Any] = field(default_factory=dict)
     result: Optional[Any] = None
     error: Optional[Dict[str, Any]] = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         message = {
@@ -58,15 +61,15 @@ class MCPMessage:
             "params": self.params,
             "timestamp": self.timestamp.isoformat(),
         }
-        
+
         if self.result is not None:
             message["result"] = self.result
-        
+
         if self.error is not None:
             message["error"] = self.error
-        
+
         return message
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MCPMessage":
         """Create from dictionary."""
@@ -77,18 +80,20 @@ class MCPMessage:
             params=data.get("params", {}),
             result=data.get("result"),
             error=data.get("error"),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.utcnow(),
+            timestamp=datetime.fromisoformat(data["timestamp"])
+            if "timestamp" in data
+            else datetime.utcnow(),
         )
 
 
 class MCPEndpointHandler:
     """Handle MCP endpoint requests."""
-    
+
     def __init__(self):
         """Initialize MCP endpoint handler."""
         self.orchestrator = get_orchestrator()
         self._initialize_agents()
-    
+
     def _initialize_agents(self) -> None:
         """Initialize and register all agents."""
         # Create agent instances
@@ -121,11 +126,11 @@ class MCPEndpointHandler:
                 include_comparisons=True,
             ),
         }
-        
+
         # Register agents with orchestrator
         for agent in self.agents.values():
             self.orchestrator.register_agent(agent)
-    
+
     async def handle_request(self, message: MCPMessage) -> MCPMessage:
         """Handle MCP request."""
         try:
@@ -145,13 +150,13 @@ class MCPEndpointHandler:
                 result = await self._handle_get_audit_logs(message.params)
             else:
                 raise ValueError(f"Unknown method: {message.method}")
-            
+
             return MCPMessage(
                 id=message.id,
                 method=message.method,
                 result=result,
             )
-            
+
         except Exception as e:
             return MCPMessage(
                 id=message.id,
@@ -160,39 +165,36 @@ class MCPEndpointHandler:
                     "code": -1,
                     "message": str(e),
                     "type": type(e).__name__,
-                }
+                },
             )
-    
+
     async def _handle_analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analyze request."""
         agent_name = params.get("agent_name")
         if not agent_name:
             raise ValueError("agent_name is required")
-        
+
         # Parse context
         context_data = params.get("context")
         if not context_data:
             raise ValueError("context is required")
-        
+
         context = self._parse_context(context_data)
-        
+
         # Parse scoring result (optional)
         scoring_result = None
         scoring_data = params.get("scoring_result")
         if scoring_data:
             scoring_result = self._parse_scoring_result(scoring_data)
-        
+
         # Get user
         user = params.get("user", "mcp_client")
-        
+
         # Execute agent
         result = await self.orchestrator.execute_agent(
-            agent_name,
-            context,
-            scoring_result,
-            user=user
+            agent_name, context, scoring_result, user=user
         )
-        
+
         return {
             "success": result.success,
             "output": result.output,
@@ -200,39 +202,35 @@ class MCPEndpointHandler:
             "duration_ms": result.duration_ms,
             "timestamp": result.timestamp.isoformat(),
         }
-    
+
     async def _handle_execute_pipeline(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle execute_pipeline request."""
         pipeline_name = params.get("pipeline_name")
         if not pipeline_name:
             raise ValueError("pipeline_name is required")
-        
+
         # Parse context
         context_data = params.get("context")
         if not context_data:
             raise ValueError("context is required")
-        
+
         context = self._parse_context(context_data)
-        
+
         # Parse scoring result (optional)
         scoring_result = None
         scoring_data = params.get("scoring_result")
         if scoring_data:
             scoring_result = self._parse_scoring_result(scoring_data)
-        
+
         # Get user and timeout
         user = params.get("user", "mcp_client")
         timeout = params.get("timeout", 60.0)
-        
+
         # Execute pipeline
         results = await self.orchestrator.execute_pipeline(
-            pipeline_name,
-            context,
-            scoring_result,
-            user=user,
-            timeout=timeout
+            pipeline_name, context, scoring_result, user=user, timeout=timeout
         )
-        
+
         # Convert results to serializable format
         serializable_results = {}
         for agent_name, result in results.items():
@@ -243,68 +241,68 @@ class MCPEndpointHandler:
                 "duration_ms": result.duration_ms,
                 "timestamp": result.timestamp.isoformat(),
             }
-        
+
         return {
             "pipeline_name": pipeline_name,
             "results": serializable_results,
             "total_agents": len(results),
             "successful_agents": sum(1 for r in results.values() if r.success),
         }
-    
+
     async def _handle_list_agents(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle list_agents request."""
         agents = self.orchestrator.list_agents()
-        
+
         agent_info = {}
         for agent_name in agents:
             info = self.orchestrator.get_agent_info(agent_name)
             agent_info[agent_name] = info
-        
+
         return {
             "agents": agents,
             "agent_info": agent_info,
             "total_agents": len(agents),
         }
-    
+
     async def _handle_get_agent_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get_agent_info request."""
         agent_name = params.get("agent_name")
         if not agent_name:
             raise ValueError("agent_name is required")
-        
+
         info = self.orchestrator.get_agent_info(agent_name)
         return info
-    
+
     async def _handle_create_pipeline(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle create_pipeline request."""
         pipeline_name = params.get("pipeline_name")
         if not pipeline_name:
             raise ValueError("pipeline_name is required")
-        
+
         parallel = params.get("parallel", False)
         agent_names = params.get("agents", [])
-        
+
         # Create pipeline
         pipeline = self.orchestrator.create_pipeline(pipeline_name, parallel)
-        
+
         # Add agents to pipeline
         for agent_name in agent_names:
             if agent_name in self.agents:
                 pipeline.add_agent(self.agents[agent_name])
             else:
                 raise ValueError(f"Unknown agent: {agent_name}")
-        
+
         return {
             "pipeline_name": pipeline_name,
             "parallel": parallel,
             "agents": agent_names,
             "total_agents": len(pipeline.agents),
         }
-    
+
     async def _handle_list_pipelines(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle list_pipelines request."""
         pipelines = self.orchestrator.list_pipelines()
-        
+
         pipeline_info = {}
         for pipeline_name in pipelines:
             pipeline = self.orchestrator.pipelines[pipeline_name]
@@ -315,34 +313,34 @@ class MCPEndpointHandler:
                 "duration_ms": pipeline.duration_ms,
                 "has_results": len(pipeline.results) > 0,
             }
-        
+
         return {
             "pipelines": pipelines,
             "pipeline_info": pipeline_info,
             "total_pipelines": len(pipelines),
         }
-    
+
     async def _handle_get_audit_logs(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get_audit_logs request."""
         agent_name = params.get("agent_name")
         limit = params.get("limit", 100)
-        
+
         events = self.orchestrator.audit_logger.get_events(agent_name, limit)
-        
+
         # Convert events to serializable format
         serializable_events = []
         for event in events:
             serializable_events.append(event.to_dict())
-        
+
         # Get stats
         stats = self.orchestrator.audit_logger.get_stats(agent_name)
-        
+
         return {
             "events": serializable_events,
             "stats": stats,
             "total_events": len(serializable_events),
         }
-    
+
     def _parse_context(self, context_data: Dict[str, Any]) -> Context:
         """Parse context from dictionary."""
         # Parse entity
@@ -356,7 +354,7 @@ class MCPEndpointHandler:
                 description=entity_data.get("description"),
                 properties=entity_data.get("properties"),
             )
-        
+
         # Parse signals
         signals_data = context_data.get("signals", [])
         signals = []
@@ -367,13 +365,15 @@ class MCPEndpointHandler:
                 signal_type=signal_data["signal_type"],
                 severity=signal_data["severity"],
                 description=signal_data.get("description"),
-                timestamp=datetime.fromisoformat(signal_data["timestamp"]) if signal_data.get("timestamp") else None,
+                timestamp=datetime.fromisoformat(signal_data["timestamp"])
+                if signal_data.get("timestamp")
+                else None,
                 entity_id=signal_data.get("entity_id"),
             )
             signals.append(signal)
-        
+
         return Context(entity=entity, signals=signals)
-    
+
     def _parse_scoring_result(self, scoring_data: Dict[str, Any]) -> ScoringResult:
         """Parse scoring result from dictionary."""
         return ScoringResult(
@@ -387,19 +387,19 @@ class MCPEndpointHandler:
 
 class MCPServer:
     """MCP Server for agent integration."""
-    
+
     def __init__(self, host: str = "localhost", port: int = 8080):
         """Initialize MCP server."""
         self.host = host
         self.port = port
         self.handler = MCPEndpointHandler()
         self.running = False
-    
+
     async def start(self) -> None:
         """Start MCP server."""
         self.running = True
         print(f"MCP Server starting on {self.host}:{self.port}")
-        
+
         # In a real implementation, this would start an actual HTTP/WebSocket server
         # For now, we'll simulate the server startup
         print("MCP Server started successfully")
@@ -411,12 +411,12 @@ class MCPServer:
         print("  - create_pipeline: Create execution pipeline")
         print("  - list_pipelines: List available pipelines")
         print("  - get_audit_logs: Get audit logs")
-    
+
     async def stop(self) -> None:
         """Stop MCP server."""
         self.running = False
         print("MCP Server stopped")
-    
+
     async def handle_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming MCP message."""
         try:
@@ -431,7 +431,7 @@ class MCPServer:
                     "code": -1,
                     "message": str(e),
                     "type": type(e).__name__,
-                }
+                },
             )
             return error_response.to_dict()
 
@@ -492,17 +492,17 @@ async def example_mcp_usage():
     """Example of MCP usage."""
     server = MCPServer()
     await server.start()
-    
+
     # Example 1: List agents
     list_agents_request = {
         "id": "req-001",
         "method": "list_agents",
         "params": {},
     }
-    
+
     response = await server.handle_message(list_agents_request)
     print("List Agents Response:", json.dumps(response, indent=2))
-    
+
     # Example 2: Analyze with context summarizer
     analyze_request = {
         "id": "req-002",
@@ -514,10 +514,10 @@ async def example_mcp_usage():
             "user": "example_user",
         },
     }
-    
+
     response = await server.handle_message(analyze_request)
     print("Analyze Response:", json.dumps(response, indent=2))
-    
+
     # Example 3: Create and execute pipeline
     create_pipeline_request = {
         "id": "req-003",
@@ -528,10 +528,10 @@ async def example_mcp_usage():
             "agents": ["context_summarizer", "gap_detector"],
         },
     }
-    
+
     response = await server.handle_message(create_pipeline_request)
     print("Create Pipeline Response:", json.dumps(response, indent=2))
-    
+
     # Execute pipeline
     execute_pipeline_request = {
         "id": "req-004",
@@ -544,10 +544,10 @@ async def example_mcp_usage():
             "timeout": 30.0,
         },
     }
-    
+
     response = await server.handle_message(execute_pipeline_request)
     print("Execute Pipeline Response:", json.dumps(response, indent=2))
-    
+
     await server.stop()
 
 

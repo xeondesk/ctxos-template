@@ -12,12 +12,12 @@ import json
 @dataclass
 class SchemaVersion:
     """Represents a schema version."""
-    
+
     version: str
     name: str
     description: str = ""
     schema: Dict[str, Any] = None
-    
+
     def __post_init__(self):
         if self.schema is None:
             self.schema = {}
@@ -26,17 +26,17 @@ class SchemaVersion:
 class SchemaRegistry:
     """
     Registry for managing schema versions.
-    
+
     Supports multiple schema versions and migrations between them.
     """
-    
+
     def __init__(self):
         """Initialize schema registry."""
         self.schemas: Dict[str, SchemaVersion] = {}
         self.migrations: Dict[str, callable] = {}
         self._current_version = "1.0.0"
         self._register_default_schemas()
-    
+
     def _register_default_schemas(self):
         """Register default schemas."""
         # Entity schema
@@ -58,7 +58,7 @@ class SchemaRegistry:
                 "description": {"type": "string", "description": "Description"},
             },
         }
-        
+
         self.register_schema(
             "entity",
             SchemaVersion(
@@ -68,7 +68,7 @@ class SchemaRegistry:
                 schema=entity_schema,
             ),
         )
-        
+
         # Signal schema
         signal_schema = {
             "type": "object",
@@ -86,7 +86,7 @@ class SchemaRegistry:
                 "metadata": {"type": "object", "description": "Metadata"},
             },
         }
-        
+
         self.register_schema(
             "signal",
             SchemaVersion(
@@ -96,7 +96,7 @@ class SchemaRegistry:
                 schema=signal_schema,
             ),
         )
-        
+
         # Context schema
         context_schema = {
             "type": "object",
@@ -112,7 +112,7 @@ class SchemaRegistry:
                 "updated_at": {"type": "string", "description": "Update time"},
             },
         }
-        
+
         self.register_schema(
             "context",
             SchemaVersion(
@@ -122,20 +122,22 @@ class SchemaRegistry:
                 schema=context_schema,
             ),
         )
-    
+
     def register_schema(self, schema_name: str, schema_version: SchemaVersion) -> None:
         """Register a schema version."""
         key = f"{schema_name}:{schema_version.version}"
         self.schemas[key] = schema_version
-    
-    def get_schema(self, schema_name: str, version: Optional[str] = None) -> Optional[SchemaVersion]:
+
+    def get_schema(
+        self, schema_name: str, version: Optional[str] = None
+    ) -> Optional[SchemaVersion]:
         """Get a schema by name and version."""
         if version is None:
             version = self._current_version
-        
+
         key = f"{schema_name}:{version}"
         return self.schemas.get(key)
-    
+
     def list_schema_versions(self, schema_name: str) -> List[str]:
         """List all versions of a schema."""
         versions = []
@@ -144,38 +146,42 @@ class SchemaRegistry:
             if name == schema_name:
                 versions.append(version)
         return sorted(versions)
-    
-    def register_migration(self, from_version: str, to_version: str, migration_func: callable) -> None:
+
+    def register_migration(
+        self, from_version: str, to_version: str, migration_func: callable
+    ) -> None:
         """Register a migration function."""
         key = f"{from_version}->{to_version}"
         self.migrations[key] = migration_func
-    
+
     def migrate(self, data: Dict[str, Any], from_version: str, to_version: str) -> Dict[str, Any]:
         """Migrate data from one version to another."""
         if from_version == to_version:
             return data
-        
+
         key = f"{from_version}->{to_version}"
         if key not in self.migrations:
             raise ValueError(f"No migration found from {from_version} to {to_version}")
-        
+
         return self.migrations[key](data)
-    
-    def validate(self, data: Dict[str, Any], schema_name: str, version: Optional[str] = None) -> bool:
+
+    def validate(
+        self, data: Dict[str, Any], schema_name: str, version: Optional[str] = None
+    ) -> bool:
         """Validate data against a schema."""
         schema_version = self.get_schema(schema_name, version)
         if schema_version is None:
             return False
-        
+
         # Simple validation - check required fields
         schema = schema_version.schema
         if "required" in schema:
             for field in schema["required"]:
                 if field not in data:
                     return False
-        
+
         return True
-    
+
     def set_current_version(self, version: str) -> None:
         """Set the current default version."""
         self._current_version = version

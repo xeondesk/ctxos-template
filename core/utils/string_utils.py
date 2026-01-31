@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 class ValidationError(Exception):
     """Raised when validation fails."""
+
     pass
 
 
@@ -60,7 +61,7 @@ def is_valid_cidr(cidr: str) -> bool:
 def normalize_domain(domain: str) -> str:
     """
     Normalize a domain name.
-    
+
     - Convert to lowercase
     - Strip whitespace
     - Remove trailing dot
@@ -74,7 +75,7 @@ def normalize_domain(domain: str) -> str:
 def normalize_email(email: str) -> str:
     """
     Normalize an email address.
-    
+
     - Convert to lowercase
     - Strip whitespace
     """
@@ -122,7 +123,7 @@ def truncate(text: str, length: int = 100, suffix: str = "...") -> str:
     """Truncate text to specified length."""
     if len(text) <= length:
         return text
-    return text[:length - len(suffix)] + suffix
+    return text[: length - len(suffix)] + suffix
 
 
 def slugify(text: str) -> str:

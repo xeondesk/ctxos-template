@@ -247,9 +247,7 @@ async def test_analyze_with_risk_score(summarizer, sample_context, risk_scoring_
 
 
 @pytest.mark.asyncio
-async def test_analyze_with_exposure_score(
-    summarizer, sample_context, exposure_scoring_result
-):
+async def test_analyze_with_exposure_score(summarizer, sample_context, exposure_scoring_result):
     """Test analyze with exposure scoring result."""
     result = await summarizer.analyze(sample_context, exposure_scoring_result)
 
@@ -531,10 +529,7 @@ async def test_large_signal_set_performance(summarizer, sample_entity):
 @pytest.mark.asyncio
 async def test_concurrent_execution(summarizer, sample_context):
     """Test concurrent execution of multiple analyses."""
-    tasks = [
-        summarizer.analyze(sample_context)
-        for _ in range(5)
-    ]
+    tasks = [summarizer.analyze(sample_context) for _ in range(5)]
 
     results = await asyncio.gather(*tasks)
 

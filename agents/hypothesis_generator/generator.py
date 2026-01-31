@@ -19,6 +19,7 @@ from agents.audit_system.audit_logger import AuditLevel
 
 class HypothesisType(Enum):
     """Types of security hypotheses."""
+
     VULNERABILITY_EXPLOITATION = "vulnerability_exploitation"
     LATERAL_MOVEMENT = "lateral_movement"
     DATA_EXFILTRATION = "data_exfiltration"
@@ -33,6 +34,7 @@ class HypothesisType(Enum):
 
 class ConfidenceLevel(Enum):
     """Confidence levels for hypotheses."""
+
     VERY_LOW = "very_low"
     LOW = "low"
     MEDIUM = "medium"
@@ -43,6 +45,7 @@ class ConfidenceLevel(Enum):
 @dataclass
 class Hypothesis:
     """Security hypothesis with supporting evidence."""
+
     id: str
     title: str
     description: str
@@ -57,7 +60,7 @@ class Hypothesis:
     related_entities: List[str] = field(default_factory=list)
     time_to_compromise: Optional[str] = None
     detection_difficulty: str = "medium"  # easy/medium/hard
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -81,6 +84,7 @@ class Hypothesis:
 @dataclass
 class HypothesisAnalysis:
     """Complete hypothesis analysis result."""
+
     total_hypotheses: int = 0
     high_confidence: int = 0
     medium_confidence: int = 0
@@ -91,7 +95,7 @@ class HypothesisAnalysis:
     attack_surface_score: float = 0.0
     threat_landscape: Dict[str, int] = field(default_factory=dict)
     recommended_investigations: List[str] = field(default_factory=list)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -110,7 +114,7 @@ class HypothesisAnalysis:
 
 class HypothesisGenerator(BaseAgentAsync):
     """Agent that generates security hypotheses based on available data."""
-    
+
     def __init__(
         self,
         name: str = "HypothesisGenerator",
@@ -121,7 +125,7 @@ class HypothesisGenerator(BaseAgentAsync):
         threat_intelligence_weight: float = 0.3,
     ):
         """Initialize hypothesis generator.
-        
+
         Args:
             name: Agent name
             version: Agent version
@@ -135,13 +139,13 @@ class HypothesisGenerator(BaseAgentAsync):
         self.min_confidence_threshold = min_confidence_threshold
         self.enable_creative_hypotheses = enable_creative_hypotheses
         self.threat_intelligence_weight = threat_intelligence_weight
-        
+
         # Hypothesis generation rules
         self.hypothesis_rules = self._initialize_hypothesis_rules()
-        
+
         # Attack patterns and TTPs
         self.attack_patterns = self._initialize_attack_patterns()
-        
+
         # Confidence thresholds
         self.confidence_thresholds = {
             ConfidenceLevel.VERY_HIGH: 0.9,
@@ -150,25 +154,25 @@ class HypothesisGenerator(BaseAgentAsync):
             ConfidenceLevel.LOW: 0.3,
             ConfidenceLevel.VERY_LOW: 0.1,
         }
-    
+
     async def analyze(
         self,
         context: Context,
         scoring_result: Optional[ScoringResult] = None,
     ) -> AgentResult:
         """Analyze context and generate security hypotheses.
-        
+
         Args:
             context: Input context with entity and signals
             scoring_result: Optional scoring result from engines
-            
+
         Returns:
             AgentResult with hypothesis analysis
         """
         try:
             # Generate hypotheses
             analysis = await self._generate_hypotheses(context, scoring_result)
-            
+
             # Create agent result
             result = AgentResult(
                 agent_name=self.name,
@@ -180,19 +184,19 @@ class HypothesisGenerator(BaseAgentAsync):
                         "high_confidence": analysis.high_confidence,
                         "critical_impact": analysis.critical_impact,
                         "attack_surface_score": analysis.attack_surface_score,
-                    }
-                }
+                    },
+                },
             )
-            
+
             return result
-            
+
         except Exception as e:
             return AgentResult(
                 agent_name=self.name,
                 success=False,
-                error=f"Failed to generate hypotheses: {str(e)}"
+                error=f"Failed to generate hypotheses: {str(e)}",
             )
-    
+
     async def _generate_hypotheses(
         self,
         context: Context,
@@ -200,62 +204,68 @@ class HypothesisGenerator(BaseAgentAsync):
     ) -> HypothesisAnalysis:
         """Generate comprehensive security hypotheses."""
         analysis = HypothesisAnalysis()
-        
+
         if not context.entity:
             return analysis
-        
+
         # Generate hypotheses from different sources
         await self._generate_signal_based_hypotheses(context, analysis)
         await self._generate_entity_based_hypotheses(context, analysis)
         await self._generate_scoring_based_hypotheses(scoring_result, analysis)
-        
+
         if self.enable_creative_hypotheses:
             await self._generate_creative_hypotheses(context, analysis)
-        
+
         # Sort and filter hypotheses
         analysis.hypotheses = self._filter_and_sort_hypotheses(analysis.hypotheses)
-        
+
         # Calculate analysis metrics
         self._calculate_analysis_metrics(analysis)
-        
+
         # Generate recommended investigations
         analysis.recommended_investigations = self._generate_investigations(analysis)
-        
+
         return analysis
-    
-    async def _generate_signal_based_hypotheses(self, context: Context, analysis: HypothesisAnalysis) -> None:
+
+    async def _generate_signal_based_hypotheses(
+        self, context: Context, analysis: HypothesisAnalysis
+    ) -> None:
         """Generate hypotheses based on signal patterns."""
         if not context.signals:
             return
-        
+
         # Group signals by type and severity
         signal_groups = self._group_signals(context.signals)
-        
+
         # Generate hypotheses for each signal pattern
         for signal_type, signals in signal_groups.items():
             hypotheses = await self._analyze_signal_pattern(signal_type, signals, context)
             analysis.hypotheses.extend(hypotheses)
-        
+
         # Generate correlation hypotheses
-        correlation_hypotheses = await self._generate_correlation_hypotheses(context.signals, context)
+        correlation_hypotheses = await self._generate_correlation_hypotheses(
+            context.signals, context
+        )
         analysis.hypotheses.extend(correlation_hypotheses)
-    
-    async def _generate_entity_based_hypotheses(self, context: Context, analysis: HypothesisAnalysis) -> None:
+
+    async def _generate_entity_based_hypotheses(
+        self, context: Context, analysis: HypothesisAnalysis
+    ) -> None:
         """Generate hypotheses based on entity characteristics."""
         entity = context.entity
-        
+
         if not entity:
             return
-        
+
         # Entity type-based hypotheses
         entity_hypotheses = await self._analyze_entity_characteristics(entity, context)
         analysis.hypotheses.extend(entity_hypotheses)
-        
+
         # Entity property-based hypotheses
         if entity.properties:
             property_hypotheses = await self._analyze_entity_properties(entity, context)
             analysis.hypotheses.extend(property_hypotheses)
-    
+
     async def _generate_scoring_based_hypotheses(
         self,
         scoring_result: Optional[ScoringResult],
@@ -264,7 +274,7 @@ class HypothesisGenerator(BaseAgentAsync):
         """Generate hypotheses based on scoring results."""
         if not scoring_result:
             return
-        
+
         # High score hypotheses
         if scoring_result.score >= 70:
             hypothesis = Hypothesis(
@@ -290,8 +300,10 @@ class HypothesisGenerator(BaseAgentAsync):
                 detection_difficulty="hard",
             )
             analysis.hypotheses.append(hypothesis)
-    
-    async def _generate_creative_hypotheses(self, context: Context, analysis: HypothesisAnalysis) -> None:
+
+    async def _generate_creative_hypotheses(
+        self, context: Context, analysis: HypothesisAnalysis
+    ) -> None:
         """Generate creative/advanced security hypotheses."""
         creative_patterns = [
             {
@@ -313,7 +325,7 @@ class HypothesisGenerator(BaseAgentAsync):
                 "description": "Signals indicate potential ransomware attack preparation phase",
             },
         ]
-        
+
         for pattern in creative_patterns:
             if self._has_trigger_signals(context.signals, pattern["triggers"]):
                 hypothesis = Hypothesis(
@@ -330,7 +342,7 @@ class HypothesisGenerator(BaseAgentAsync):
                     detection_difficulty="medium",
                 )
                 analysis.hypotheses.append(hypothesis)
-    
+
     def _group_signals(self, signals: List[Signal]) -> Dict[str, List[Signal]]:
         """Group signals by type."""
         groups = {}
@@ -339,7 +351,7 @@ class HypothesisGenerator(BaseAgentAsync):
                 groups[signal.signal_type] = []
             groups[signal.signal_type].append(signal)
         return groups
-    
+
     async def _analyze_signal_pattern(
         self,
         signal_type: str,
@@ -348,18 +360,18 @@ class HypothesisGenerator(BaseAgentAsync):
     ) -> List[Hypothesis]:
         """Analyze specific signal pattern for hypotheses."""
         hypotheses = []
-        
+
         # Get hypothesis rules for this signal type
         rules = self.hypothesis_rules.get(signal_type, [])
-        
+
         for rule in rules:
             if self._matches_rule(signals, rule):
                 hypothesis = await self._create_hypothesis_from_rule(rule, signals, context)
                 if hypothesis:
                     hypotheses.append(hypothesis)
-        
+
         return hypotheses
-    
+
     async def _generate_correlation_hypotheses(
         self,
         signals: List[Signal],
@@ -367,10 +379,10 @@ class HypothesisGenerator(BaseAgentAsync):
     ) -> List[Hypothesis]:
         """Generate hypotheses from signal correlations."""
         hypotheses = []
-        
+
         # Look for attack chains
         attack_chains = self._identify_attack_chains(signals)
-        
+
         for chain in attack_chains:
             hypothesis = Hypothesis(
                 id=f"attack_chain_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
@@ -380,24 +392,26 @@ class HypothesisGenerator(BaseAgentAsync):
                 confidence=ConfidenceLevel.HIGH,
                 likelihood=0.8,
                 impact="critical",
-                supporting_signals=[s.id for s in chain['signals']],
-                attack_steps=chain['steps'],
+                supporting_signals=[s.id for s in chain["signals"]],
+                attack_steps=chain["steps"],
                 mitigations=[
                     "Break the attack chain at earliest possible step",
                     "Implement detection for each attack stage",
                     "Strengthen controls at transition points",
                 ],
-                time_to_compromise=chain.get('time_to_compromise', 'hours'),
+                time_to_compromise=chain.get("time_to_compromise", "hours"),
                 detection_difficulty="hard",
             )
             hypotheses.append(hypothesis)
-        
+
         return hypotheses
-    
-    async def _analyze_entity_characteristics(self, entity: Entity, context: Context) -> List[Hypothesis]:
+
+    async def _analyze_entity_characteristics(
+        self, entity: Entity, context: Context
+    ) -> List[Hypothesis]:
         """Analyze entity characteristics for hypotheses."""
         hypotheses = []
-        
+
         # Critical entity hypotheses
         if entity.entity_type in {"host", "application", "database"}:
             hypothesis = Hypothesis(
@@ -426,15 +440,17 @@ class HypothesisGenerator(BaseAgentAsync):
                 detection_difficulty="medium",
             )
             hypotheses.append(hypothesis)
-        
+
         return hypotheses
-    
-    async def _analyze_entity_properties(self, entity: Entity, context: Context) -> List[Hypothesis]:
+
+    async def _analyze_entity_properties(
+        self, entity: Entity, context: Context
+    ) -> List[Hypothesis]:
         """Analyze entity properties for hypotheses."""
         hypotheses = []
-        
+
         props = entity.properties or {}
-        
+
         # Public-facing assets
         if props.get("public", False) or props.get("exposed", False):
             hypothesis = Hypothesis(
@@ -462,15 +478,15 @@ class HypothesisGenerator(BaseAgentAsync):
                 detection_difficulty="medium",
             )
             hypotheses.append(hypothesis)
-        
+
         return hypotheses
-    
+
     def _matches_rule(self, signals: List[Signal], rule: Dict[str, Any]) -> bool:
         """Check if signals match hypothesis rule."""
         # Check signal count
         if "min_signals" in rule and len(signals) < rule["min_signals"]:
             return False
-        
+
         # Check severity requirements
         if "min_severity" in rule:
             severity_levels = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
@@ -478,7 +494,7 @@ class HypothesisGenerator(BaseAgentAsync):
             required_level = severity_levels.get(rule["min_severity"], 0)
             if max_severity < required_level:
                 return False
-        
+
         # Check specific patterns
         if "pattern" in rule:
             pattern = rule["pattern"]
@@ -486,9 +502,9 @@ class HypothesisGenerator(BaseAgentAsync):
                 if pattern in signal.description.lower():
                     return True
             return False
-        
+
         return True
-    
+
     async def _create_hypothesis_from_rule(
         self,
         rule: Dict[str, Any],
@@ -497,7 +513,7 @@ class HypothesisGenerator(BaseAgentAsync):
     ) -> Optional[Hypothesis]:
         """Create hypothesis from matching rule."""
         hypothesis_type = HypothesisType(rule["hypothesis_type"])
-        
+
         hypothesis = Hypothesis(
             id=f"{hypothesis_type.value}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
             title=rule["title"],
@@ -512,18 +528,18 @@ class HypothesisGenerator(BaseAgentAsync):
             time_to_compromise=rule.get("time_to_compromise"),
             detection_difficulty=rule.get("detection_difficulty", "medium"),
         )
-        
+
         return hypothesis
-    
+
     def _has_trigger_signals(self, signals: List[Signal], triggers: List[str]) -> bool:
         """Check if context has trigger signals."""
         signal_types = {s.signal_type for s in signals}
         return any(trigger in signal_types for trigger in triggers)
-    
+
     def _identify_attack_chains(self, signals: List[Signal]) -> List[Dict[str, Any]]:
         """Identify potential attack chains from signals."""
         chains = []
-        
+
         # Common attack chain patterns
         chain_patterns = [
             {
@@ -532,7 +548,7 @@ class HypothesisGenerator(BaseAgentAsync):
                 "signal_sequence": ["DNS", "SUBDOMAIN", "PORT", "VULNERABILITY"],
                 "steps": [
                     "DNS reconnaissance",
-                    "Subdomain enumeration", 
+                    "Subdomain enumeration",
                     "Port scanning",
                     "Vulnerability discovery",
                     "Exploitation",
@@ -552,40 +568,42 @@ class HypothesisGenerator(BaseAgentAsync):
                 "time_to_compromise": "days",
             },
         ]
-        
+
         for pattern in chain_patterns:
             if self._matches_attack_chain(signals, pattern):
                 chain_signals = [s for s in signals if s.signal_type in pattern["signal_sequence"]]
-                chains.append({
-                    **pattern,
-                    "signals": chain_signals,
-                })
-        
+                chains.append(
+                    {
+                        **pattern,
+                        "signals": chain_signals,
+                    }
+                )
+
         return chains
-    
+
     def _matches_attack_chain(self, signals: List[Signal], pattern: Dict[str, Any]) -> bool:
         """Check if signals match attack chain pattern."""
         signal_types = {s.signal_type for s in signals}
         required_types = set(pattern["signal_sequence"])
-        
+
         # Check if we have at least 3 of the required signal types
         overlap = len(signal_types & required_types)
         return overlap >= 3
-    
+
     def _calculate_confidence(self, rule: Dict[str, Any], signals: List[Signal]) -> ConfidenceLevel:
         """Calculate confidence level for hypothesis."""
         base_confidence = rule.get("base_confidence", 0.5)
-        
+
         # Boost confidence based on signal quality
         signal_boost = min(0.3, len(signals) * 0.1)
-        
+
         # Boost confidence based on severity
         severity_levels = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
         max_severity = max(severity_levels.get(s.severity.lower(), 0) for s in signals)
         severity_boost = max_severity * 0.1
-        
+
         total_confidence = base_confidence + signal_boost + severity_boost
-        
+
         # Convert to confidence level
         if total_confidence >= 0.9:
             return ConfidenceLevel.VERY_HIGH
@@ -597,7 +615,7 @@ class HypothesisGenerator(BaseAgentAsync):
             return ConfidenceLevel.LOW
         else:
             return ConfidenceLevel.VERY_LOW
-    
+
     def _score_to_confidence(self, score: float) -> ConfidenceLevel:
         """Convert numeric score to confidence level."""
         if score >= 90:
@@ -610,7 +628,7 @@ class HypothesisGenerator(BaseAgentAsync):
             return ConfidenceLevel.LOW
         else:
             return ConfidenceLevel.VERY_LOW
-    
+
     def _generate_attack_steps(self, hypothesis_type: HypothesisType) -> List[str]:
         """Generate attack steps for hypothesis type."""
         step_templates = {
@@ -633,9 +651,9 @@ class HypothesisGenerator(BaseAgentAsync):
                 "Demand ransom payment",
             ],
         }
-        
+
         return step_templates.get(hypothesis_type, ["Attack steps not specified"])
-    
+
     def _generate_mitigations(self, hypothesis_type: HypothesisType) -> List[str]:
         """Generate mitigations for hypothesis type."""
         mitigation_templates = {
@@ -658,9 +676,9 @@ class HypothesisGenerator(BaseAgentAsync):
                 "Endpoint detection and response",
             ],
         }
-        
+
         return mitigation_templates.get(hypothesis_type, ["Implement security controls"])
-    
+
     def _filter_and_sort_hypotheses(self, hypotheses: List[Hypothesis]) -> List[Hypothesis]:
         """Filter and sort hypotheses by confidence and impact."""
         # Filter by confidence threshold
@@ -671,28 +689,29 @@ class HypothesisGenerator(BaseAgentAsync):
             ConfidenceLevel.LOW: 0.4,
             ConfidenceLevel.VERY_LOW: 0.2,
         }
-        
+
         filtered = [
-            h for h in hypotheses
+            h
+            for h in hypotheses
             if confidence_values[h.confidence] >= self.min_confidence_threshold
         ]
-        
+
         # Sort by confidence and impact
         impact_weights = {"critical": 3, "high": 2, "medium": 1, "low": 0}
-        
+
         def sort_key(h):
             conf_weight = confidence_values[h.confidence]
             impact_weight = impact_weights.get(h.impact, 0)
             return (conf_weight, impact_weight, h.likelihood)
-        
+
         filtered.sort(key=sort_key, reverse=True)
-        
-        return filtered[:self.max_hypotheses]
-    
+
+        return filtered[: self.max_hypotheses]
+
     def _calculate_analysis_metrics(self, analysis: HypothesisAnalysis) -> None:
         """Calculate analysis metrics."""
         analysis.total_hypotheses = len(analysis.hypotheses)
-        
+
         # Count confidence levels
         for hypothesis in analysis.hypotheses:
             if hypothesis.confidence in {ConfidenceLevel.VERY_HIGH, ConfidenceLevel.HIGH}:
@@ -701,50 +720,56 @@ class HypothesisGenerator(BaseAgentAsync):
                 analysis.medium_confidence += 1
             else:
                 analysis.low_confidence += 1
-            
+
             # Count impact levels
             if hypothesis.impact == "critical":
                 analysis.critical_impact += 1
             elif hypothesis.impact == "high":
                 analysis.high_impact += 1
-            
+
             # Track threat landscape
             h_type = hypothesis.hypothesis_type.value
             analysis.threat_landscape[h_type] = analysis.threat_landscape.get(h_type, 0) + 1
-        
+
         # Calculate attack surface score
         if analysis.total_hypotheses > 0:
-            high_impact_ratio = (analysis.critical_impact + analysis.high_impact) / analysis.total_hypotheses
+            high_impact_ratio = (
+                analysis.critical_impact + analysis.high_impact
+            ) / analysis.total_hypotheses
             high_conf_ratio = analysis.high_confidence / analysis.total_hypotheses
             analysis.attack_surface_score = (high_impact_ratio * 0.6 + high_conf_ratio * 0.4) * 100
-    
+
     def _generate_investigations(self, analysis: HypothesisAnalysis) -> List[str]:
         """Generate recommended investigations."""
         investigations = []
-        
+
         # Priority investigations based on high-impact hypotheses
         critical_hypotheses = [h for h in analysis.hypotheses if h.impact == "critical"]
         if critical_hypotheses:
             investigations.append(
                 f"URGENT: Investigate {len(critical_hypotheses)} critical threat hypotheses"
             )
-        
+
         # High-confidence hypotheses
-        high_conf_hypotheses = [h for h in analysis.hypotheses if h.confidence in {ConfidenceLevel.VERY_HIGH, ConfidenceLevel.HIGH}]
+        high_conf_hypotheses = [
+            h
+            for h in analysis.hypotheses
+            if h.confidence in {ConfidenceLevel.VERY_HIGH, ConfidenceLevel.HIGH}
+        ]
         if high_conf_hypotheses:
             investigations.append(
                 f"HIGH: Validate {len(high_conf_hypotheses)} high-confidence threat scenarios"
             )
-        
+
         # Most common threat types
         if analysis.threat_landscape:
             top_threat = max(analysis.threat_landscape.items(), key=lambda x: x[1])
             investigations.append(
                 f"Focus on {top_threat[0]} threats ({top_threat[1]} hypotheses detected)"
             )
-        
+
         return investigations[:5]  # Limit to top 5
-    
+
     def _initialize_hypothesis_rules(self) -> Dict[str, List[Dict[str, Any]]]:
         """Initialize hypothesis generation rules."""
         return {
@@ -822,7 +847,7 @@ class HypothesisGenerator(BaseAgentAsync):
                 },
             ],
         }
-    
+
     def _initialize_attack_patterns(self) -> Dict[str, List[str]]:
         """Initialize attack patterns and TTPs."""
         return {

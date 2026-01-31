@@ -13,12 +13,19 @@ from core.models.entity import Entity
 from core.models.signal import Signal
 from core.scoring.risk import get_risk_engine, ScoringResult
 from api.server.models.request import (
-    ScoreRequestBody, BatchScoreRequest, HistoricalQueryRequest,
-    ContextInput, SignalInput, EntityInput
+    ScoreRequestBody,
+    BatchScoreRequest,
+    HistoricalQueryRequest,
+    ContextInput,
+    SignalInput,
+    EntityInput,
 )
 from api.server.models.response import (
-    ScoringResultResponse, StatusResponse, PaginatedResponse,
-    EntityResponse, SignalResponse
+    ScoringResultResponse,
+    StatusResponse,
+    PaginatedResponse,
+    EntityResponse,
+    SignalResponse,
 )
 from api.server.middleware.auth import verify_jwt_token, TokenData
 from api.server.middleware.rbac import require_permission
@@ -38,7 +45,7 @@ def _convert_context_input(context_input: ContextInput) -> Context:
         description=context_input.entity.description,
         properties=context_input.entity.properties,
     )
-    
+
     # Convert signals
     signals = []
     if context_input.signals:
@@ -53,20 +60,17 @@ def _convert_context_input(context_input: ContextInput) -> Context:
                 entity_id=signal_input.entity_id,
             )
             signals.append(signal)
-    
+
     return Context(entity=entity, signals=signals)
 
 
 def _convert_scoring_result_to_response(
-    result: ScoringResult,
-    entity_id: str,
-    entity_type: str,
-    engine_name: str
+    result: ScoringResult, entity_id: str, entity_type: str, engine_name: str
 ) -> ScoringResultResponse:
     """Convert ScoringResult to response model."""
     # Convert signals
     signal_responses = []
-    if hasattr(result, 'signals') and result.signals:
+    if hasattr(result, "signals") and result.signals:
         for signal in result.signals:
             signal_response = SignalResponse(
                 name=signal.signal_type,
@@ -75,7 +79,7 @@ def _convert_scoring_result_to_response(
                 timestamp=signal.timestamp,
             )
             signal_responses.append(signal_response)
-    
+
     return ScoringResultResponse(
         entity_id=entity_id,
         entity_type=entity_type,
@@ -99,24 +103,24 @@ async def score_entity(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> List[ScoringResultResponse]:
     """Score an entity using specified engines.
-    
+
     Args:
         request: Score request with context and engines
         token_data: JWT token data
-        
+
     Returns:
         List of scoring results from requested engines
     """
     require_permission("read", token_data)
-    
+
     try:
         # Convert context
         context = _convert_context_input(request.context)
-        
+
         # Determine engines to run
         engines = request.engines or ["risk", "exposure", "drift"]
         results = []
-        
+
         # Run each engine
         for engine_name in engines:
             try:
@@ -137,27 +141,26 @@ async def score_entity(
                     continue
                 else:
                     logger.warning(f"Unknown engine: {engine_name}")
-                    
+
             except Exception as e:
                 logger.error(f"Error running {engine_name} engine: {e}")
                 # Continue with other engines
                 continue
-        
+
         if not results:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="No scoring engines are currently available"
+                detail="No scoring engines are currently available",
             )
-        
+
         return results
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error scoring entity: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Scoring failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Scoring failed: {str(e)}"
         )
 
 
@@ -173,41 +176,43 @@ async def score_batch(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> List[ScoringResultResponse]:
     """Score multiple entities in batch.
-    
+
     Args:
         request: Batch score request
         background_tasks: FastAPI background tasks
         token_data: JWT token data
-        
+
     Returns:
         List of scoring results for all entities
     """
     require_permission("read", token_data)
-    
+
     try:
         if len(request.contexts) > 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 100 entities allowed per batch request"
+                detail="Maximum 100 entities allowed per batch request",
             )
-        
+
         engines = request.engines or ["risk", "exposure", "drift"]
         all_results = []
-        
+
         if request.parallel:
             # Process entities in parallel
             tasks = []
             for context_input in request.contexts:
                 task = _score_single_entity(context_input, engines)
                 tasks.append(task)
-            
+
             # Wait for all tasks to complete
             results_per_entity = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Flatten results and handle exceptions
             for i, entity_results in enumerate(results_per_entity):
                 if isinstance(entity_results, Exception):
-                    logger.error(f"Error scoring entity {request.contexts[i].entity.id}: {entity_results}")
+                    logger.error(
+                        f"Error scoring entity {request.contexts[i].entity.id}: {entity_results}"
+                    )
                     continue
                 all_results.extend(entity_results)
         else:
@@ -219,33 +224,32 @@ async def score_batch(
                 except Exception as e:
                     logger.error(f"Error scoring entity {context_input.entity.id}: {e}")
                     continue
-        
+
         if not all_results:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="No scoring results available"
+                detail="No scoring results available",
             )
-        
+
         return all_results
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in batch scoring: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch scoring failed: {str(e)}"
+            detail=f"Batch scoring failed: {str(e)}",
         )
 
 
 async def _score_single_entity(
-    context_input: ContextInput,
-    engines: List[str]
+    context_input: ContextInput, engines: List[str]
 ) -> List[ScoringResultResponse]:
     """Score a single entity with specified engines."""
     context = _convert_context_input(context_input)
     results = []
-    
+
     for engine_name in engines:
         try:
             if engine_name == "risk":
@@ -264,7 +268,7 @@ async def _score_single_entity(
         except Exception as e:
             logger.error(f"Error in {engine_name} engine: {e}")
             continue
-    
+
     return results
 
 
@@ -280,17 +284,17 @@ async def get_scoring_history(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> PaginatedResponse:
     """Get historical scoring data for an entity.
-    
+
     Args:
         entity_id: Entity ID
         request: Historical query parameters
         token_data: JWT token data
-        
+
     Returns:
         Paginated historical scoring data
     """
     require_permission("read", token_data)
-    
+
     try:
         # TODO: Implement historical data retrieval
         # For now, return empty result
@@ -301,12 +305,12 @@ async def get_scoring_history(
             offset=request.offset,
             has_next=False,
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting scoring history: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get scoring history: {str(e)}"
+            detail=f"Failed to get scoring history: {str(e)}",
         )
 
 
@@ -320,48 +324,48 @@ async def get_available_engines(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> Dict[str, Any]:
     """Get list of available scoring engines and their status.
-    
+
     Args:
         token_data: JWT token data
-        
+
     Returns:
         Dictionary of available engines
     """
     require_permission("read", token_data)
-    
+
     try:
         engines = {
             "risk": {
                 "name": "Risk Engine",
                 "description": "Assesses vulnerability and security incident risk",
                 "status": "available",
-                "version": "1.0.0"
+                "version": "1.0.0",
             },
             "exposure": {
                 "name": "Exposure Engine",
                 "description": "Measures attack surface and public exposure",
                 "status": "coming_soon",
-                "version": "1.0.0"
+                "version": "1.0.0",
             },
             "drift": {
                 "name": "Drift Engine",
                 "description": "Detects configuration changes and deviations",
                 "status": "coming_soon",
-                "version": "1.0.0"
-            }
+                "version": "1.0.0",
+            },
         }
-        
+
         return {
             "engines": engines,
             "total": len(engines),
-            "available": len([e for e in engines.values() if e["status"] == "available"])
+            "available": len([e for e in engines.values() if e["status"] == "available"]),
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting available engines: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get engines: {str(e)}"
+            detail=f"Failed to get engines: {str(e)}",
         )
 
 
@@ -377,26 +381,25 @@ async def get_aggregate_scores(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> Dict[str, Any]:
     """Get aggregate scoring statistics for multiple entities.
-    
+
     Args:
         entity_ids: List of entity IDs
         engines: Engines to include (default: all)
         token_data: JWT token data
-        
+
     Returns:
         Aggregate scoring statistics
     """
     require_permission("read", token_data)
-    
+
     try:
         if len(entity_ids) > 1000:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 1000 entity IDs allowed"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 1000 entity IDs allowed"
             )
-        
+
         engines = engines or ["risk", "exposure", "drift"]
-        
+
         # TODO: Implement aggregate scoring
         # For now, return mock statistics
         return {
@@ -408,33 +411,33 @@ async def get_aggregate_scores(
                     "max_score": 95.0,
                     "min_score": 12.5,
                     "high_risk_count": 15,
-                    "critical_risk_count": 3
+                    "critical_risk_count": 3,
                 },
                 "exposure": {
                     "average_score": 38.7,
                     "max_score": 87.0,
                     "min_score": 8.2,
                     "high_exposure_count": 12,
-                    "critical_exposure_count": 2
+                    "critical_exposure_count": 2,
                 },
                 "drift": {
                     "average_score": 25.1,
                     "max_score": 72.0,
                     "min_score": 5.0,
                     "high_drift_count": 8,
-                    "critical_drift_count": 1
-                }
+                    "critical_drift_count": 1,
+                },
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting aggregate scores: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get aggregate scores: {str(e)}"
+            detail=f"Failed to get aggregate scores: {str(e)}",
         )
 
 
@@ -450,26 +453,26 @@ async def compare_entities(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> Dict[str, Any]:
     """Compare scoring results between multiple entities.
-    
+
     Args:
         entity_ids: List of entity IDs to compare
         engines: Engines to include in comparison
         token_data: JWT token data
-        
+
     Returns:
         Comparison results
     """
     require_permission("read", token_data)
-    
+
     try:
         if len(entity_ids) < 2 or len(entity_ids) > 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Must provide 2-10 entity IDs for comparison"
+                detail="Must provide 2-10 entity IDs for comparison",
             )
-        
+
         engines = engines or ["risk", "exposure", "drift"]
-        
+
         # TODO: Implement entity comparison
         # For now, return mock comparison
         return {
@@ -480,31 +483,31 @@ async def compare_entities(
                     "highest": entity_ids[0],
                     "lowest": entity_ids[1],
                     "average": 52.3,
-                    "range": 82.5
+                    "range": 82.5,
                 },
                 "exposure": {
                     "highest": entity_ids[0],
                     "lowest": entity_ids[2],
                     "average": 41.7,
-                    "range": 78.9
+                    "range": 78.9,
                 },
                 "drift": {
                     "highest": entity_ids[1],
                     "lowest": entity_ids[0],
                     "average": 28.4,
-                    "range": 67.0
-                }
+                    "range": 67.0,
+                },
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error comparing entities: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compare entities: {str(e)}"
+            detail=f"Failed to compare entities: {str(e)}",
         )
 
 
@@ -518,19 +521,19 @@ async def get_scoring_status(
     token_data: TokenData = Depends(verify_jwt_token),
 ) -> Dict[str, Any]:
     """Get scoring service status and health.
-    
+
     Args:
         token_data: JWT token data
-        
+
     Returns:
         Service status information
     """
     require_permission("read", token_data)
-    
+
     try:
         # Check engine availability
         risk_engine = get_risk_engine()
-        
+
         status = {
             "service": "scoring",
             "status": "healthy",
@@ -539,30 +542,24 @@ async def get_scoring_status(
                 "risk": {
                     "status": "available",
                     "last_run": datetime.utcnow().isoformat(),
-                    "version": "1.0.0"
+                    "version": "1.0.0",
                 },
-                "exposure": {
-                    "status": "not_implemented",
-                    "version": "1.0.0"
-                },
-                "drift": {
-                    "status": "not_implemented",
-                    "version": "1.0.0"
-                }
+                "exposure": {"status": "not_implemented", "version": "1.0.0"},
+                "drift": {"status": "not_implemented", "version": "1.0.0"},
             },
             "metrics": {
                 "total_requests": 0,  # TODO: Implement metrics
                 "successful_requests": 0,
                 "failed_requests": 0,
-                "average_response_time_ms": 0.0
-            }
+                "average_response_time_ms": 0.0,
+            },
         }
-        
+
         return status
-        
+
     except Exception as e:
         logger.error(f"Error getting scoring status: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get status: {str(e)}"
+            detail=f"Failed to get status: {str(e)}",
         )

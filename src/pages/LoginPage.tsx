@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { useAuthActions } from '@/store';
+import { useAuthActions } from 'store';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();

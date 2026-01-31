@@ -76,4 +76,3 @@ __all__ = [
     "camel_to_snake",
     "snake_to_camel",
 ]
-

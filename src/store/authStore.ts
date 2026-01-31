@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AuthState, UserInfo, LoginRequest } from '@/types';
-import { apiClient } from '@/api';
+import { AuthState, UserInfo, LoginRequest } from 'types';
+import { apiClient } from 'api';
 
 interface AuthStore extends AuthState {
   login: (credentials: LoginRequest) => Promise<void>;

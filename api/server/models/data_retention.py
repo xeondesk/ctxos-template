@@ -5,7 +5,18 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, validator
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, JSON, Enum as SQLEnum, Float
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Boolean,
+    Text,
+    ForeignKey,
+    JSON,
+    Enum as SQLEnum,
+    Float,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -14,6 +25,7 @@ Base = declarative_base()
 
 class RetentionPolicy(str, Enum):
     """Retention policy enumeration."""
+
     IMMEDIATE = "immediate"  # Delete immediately
     DAYS_30 = "30_days"
     DAYS_90 = "90_days"
@@ -28,6 +40,7 @@ class RetentionPolicy(str, Enum):
 
 class VersionStatus(str, Enum):
     """Version status enumeration."""
+
     ACTIVE = "active"
     ARCHIVED = "archived"
     DELETED = "deleted"
@@ -36,6 +49,7 @@ class VersionStatus(str, Enum):
 
 class ArchiveStatus(str, Enum):
     """Archive status enumeration."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -45,63 +59,69 @@ class ArchiveStatus(str, Enum):
 # Database Models
 class RetentionRule(Base):
     """Data retention rule model."""
+
     __tablename__ = "retention_rules"
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
-    
+
     # Rule configuration
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    resource_type = Column(String(50), nullable=False, index=True)  # entity, signal, score, evidence, etc.
+    resource_type = Column(
+        String(50), nullable=False, index=True
+    )  # entity, signal, score, evidence, etc.
     retention_policy = Column(SQLEnum(RetentionPolicy), nullable=False)
     custom_retention_days = Column(Integer)  # For custom policy
     conditions = Column(JSON)  # Conditions for applying this rule
-    
+
     # Archive configuration
     archive_before_delete = Column(Boolean, default=True)
     archive_location = Column(String(255))  # S3, local, etc.
     compress_archive = Column(Boolean, default=True)
-    
+
     # Metadata
     is_active = Column(Boolean, default=True)
     priority = Column(Integer, default=100)  # Lower number = higher priority
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(Integer, ForeignKey("users.id"))
-    
+
     # Relationships
     tenant = relationship("Tenant", backref="retention_rules")
     creator = relationship("User", backref="retention_rules_created")
-    executions = relationship("RetentionExecution", back_populates="rule", cascade="all, delete-orphan")
+    executions = relationship(
+        "RetentionExecution", back_populates="rule", cascade="all, delete-orphan"
+    )
 
 
 class RetentionExecution(Base):
     """Retention rule execution log."""
+
     __tablename__ = "retention_executions"
 
     id = Column(Integer, primary_key=True, index=True)
     rule_id = Column(Integer, ForeignKey("retention_rules.id"), nullable=False)
-    
+
     # Execution details
     execution_type = Column(String(50))  # scheduled, manual, test
     status = Column(String(50))  # running, completed, failed, cancelled
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
-    
+
     # Results
     items_processed = Column(Integer, default=0)
     items_archived = Column(Integer, default=0)
     items_deleted = Column(Integer, default=0)
     items_failed = Column(Integer, default=0)
-    
+
     # Error information
     error_message = Column(Text)
     error_details = Column(JSON)
-    
+
     # Metadata
     triggered_by = Column(Integer, ForeignKey("users.id"))
-    
+
     # Relationships
     rule = relationship("RetentionRule", back_populates="executions")
     trigger_user = relationship("User", backref="retention_executions_triggered")
@@ -109,83 +129,87 @@ class RetentionExecution(Base):
 
 class DataVersion(Base):
     """Data version model for tracking changes."""
+
     __tablename__ = "data_versions"
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
-    
+
     # Version information
     resource_type = Column(String(50), nullable=False, index=True)
     resource_id = Column(String(255), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
     status = Column(SQLEnum(VersionStatus), default=VersionStatus.ACTIVE)
-    
+
     # Data content
     data_content = Column(JSON)
     data_hash = Column(String(64))  # SHA-256 hash
     data_size = Column(Integer)
-    
+
     # Change information
     change_type = Column(String(50))  # create, update, delete, merge
     change_description = Column(Text)
     changed_fields = Column(JSON)  # List of changed fields
-    
+
     # Actor information
     changed_by = Column(Integer, ForeignKey("users.id"))
     changed_at = Column(DateTime, default=datetime.utcnow)
     change_reason = Column(String(255))
-    
+
     # Version relationships
     parent_version_id = Column(Integer, ForeignKey("data_versions.id"))
     merged_from_versions = Column(JSON)  # List of version IDs merged
-    
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime)
-    
+
     # Relationships
     tenant = relationship("Tenant", backref="data_versions")
     project = relationship("Project", backref="data_versions")
     changer = relationship("User", backref="data_versions_changed")
     parent_version = relationship("DataVersion", remote_side=[id])
-    attachments = relationship("VersionAttachment", back_populates="version", cascade="all, delete-orphan")
+    attachments = relationship(
+        "VersionAttachment", back_populates="version", cascade="all, delete-orphan"
+    )
 
 
 class Archive(Base):
     """Archive model for storing archived data."""
+
     __tablename__ = "archives"
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
-    
+
     # Archive information
     archive_name = Column(String(255), nullable=False)
     archive_type = Column(String(50))  # full, incremental, differential
     resource_type = Column(String(50))
     resource_ids = Column(JSON)  # List of resource IDs in this archive
-    
+
     # Storage information
     storage_location = Column(String(500))
     storage_path = Column(String(500))
     storage_size = Column(Integer)
     storage_format = Column(String(50))  # zip, tar, gzip, etc.
     compression_ratio = Column(Float)
-    
+
     # Archive status
     status = Column(SQLEnum(ArchiveStatus), default=ArchiveStatus.PENDING)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
     expires_at = Column(DateTime)
-    
+
     # Content information
     item_count = Column(Integer, default=0)
     checksum = Column(String(64))  # SHA-256 of archive file
-    
+
     # Metadata
     created_by = Column(Integer, ForeignKey("users.id"))
     retention_rule_id = Column(Integer, ForeignKey("retention_rules.id"))
-    
+
     # Relationships
     tenant = relationship("Tenant", backref="archives")
     creator = relationship("User", backref="archives_created")
@@ -194,11 +218,12 @@ class Archive(Base):
 
 class VersionAttachment(Base):
     """Version attachment model."""
+
     __tablename__ = "version_attachments"
 
     id = Column(Integer, primary_key=True, index=True)
     version_id = Column(Integer, ForeignKey("data_versions.id"), nullable=False)
-    
+
     # File information
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255))
@@ -206,11 +231,11 @@ class VersionAttachment(Base):
     file_size = Column(Integer)
     file_path = Column(String(500))
     file_hash = Column(String(64))
-    
+
     # Metadata
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     version = relationship("DataVersion", back_populates="attachments")
     uploader = relationship("User", backref="version_attachments")
@@ -219,6 +244,7 @@ class VersionAttachment(Base):
 # Pydantic Models for API
 class RetentionRuleBase(BaseModel):
     """Base retention rule model."""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     resource_type: str = Field(..., min_length=1, max_length=50)
@@ -230,20 +256,22 @@ class RetentionRuleBase(BaseModel):
     compress_archive: bool = True
     priority: int = Field(100, ge=1, le=1000)
 
-    @validator('custom_retention_days')
+    @validator("custom_retention_days")
     def validate_custom_retention(cls, v, values):
-        if values.get('retention_policy') == RetentionPolicyPolicy.CUSTOM and v is None:
-            raise ValueError('custom_retention_days is required for custom retention policy')
+        if values.get("retention_policy") == RetentionPolicyPolicy.CUSTOM and v is None:
+            raise ValueError("custom_retention_days is required for custom retention policy")
         return v
 
 
 class RetentionRuleCreate(RetentionRuleBase):
     """Retention rule creation model."""
+
     tenant_id: int
 
 
 class RetentionRuleUpdate(BaseModel):
     """Retention rule update model."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     retention_policy: Optional[RetentionPolicy] = None
@@ -258,6 +286,7 @@ class RetentionRuleUpdate(BaseModel):
 
 class RetentionRuleInDB(RetentionRuleBase):
     """Retention rule model as stored in database."""
+
     id: int
     tenant_id: int
     is_active: bool
@@ -271,6 +300,7 @@ class RetentionRuleInDB(RetentionRuleBase):
 
 class DataVersionBase(BaseModel):
     """Base data version model."""
+
     resource_type: str = Field(..., min_length=1, max_length=50)
     resource_id: str = Field(..., min_length=1, max_length=255)
     data_content: Optional[Dict[str, Any]] = {}
@@ -285,18 +315,21 @@ class DataVersionBase(BaseModel):
 
 class DataVersionCreate(DataVersionBase):
     """Data version creation model."""
+
     tenant_id: int
     project_id: Optional[int] = None
 
 
 class DataVersionUpdate(BaseModel):
     """Data version update model."""
+
     status: Optional[VersionStatus] = None
     expires_at: Optional[datetime] = None
 
 
 class DataVersionInDB(DataVersionBase):
     """Data version model as stored in database."""
+
     id: int
     tenant_id: int
     project_id: Optional[int]
@@ -314,6 +347,7 @@ class DataVersionInDB(DataVersionBase):
 
 class ArchiveBase(BaseModel):
     """Base archive model."""
+
     archive_name: str = Field(..., min_length=1, max_length=255)
     archive_type: Optional[str] = "full"
     resource_type: Optional[str] = None
@@ -325,17 +359,20 @@ class ArchiveBase(BaseModel):
 
 class ArchiveCreate(ArchiveBase):
     """Archive creation model."""
+
     tenant_id: int
 
 
 class ArchiveUpdate(BaseModel):
     """Archive update model."""
+
     status: Optional[ArchiveStatus] = None
     expires_at: Optional[datetime] = None
 
 
 class ArchiveInDB(ArchiveBase):
     """Archive model as stored in database."""
+
     id: int
     tenant_id: int
     storage_path: Optional[str]
@@ -356,6 +393,7 @@ class ArchiveInDB(ArchiveBase):
 # Response Models
 class RetentionRuleResponse(RetentionRuleInDB):
     """Retention rule response model."""
+
     creator_username: Optional[str] = None
     execution_count: Optional[int] = 0
     last_execution: Optional[datetime] = None
@@ -363,6 +401,7 @@ class RetentionRuleResponse(RetentionRuleInDB):
 
 class RetentionExecutionResponse(BaseModel):
     """Retention execution response model."""
+
     id: int
     rule_id: int
     rule_name: str
@@ -380,6 +419,7 @@ class RetentionExecutionResponse(BaseModel):
 
 class DataVersionResponse(DataVersionInDB):
     """Data version response model."""
+
     changer_username: Optional[str] = None
     parent_version_number: Optional[int] = None
     attachment_count: Optional[int] = 0
@@ -387,6 +427,7 @@ class DataVersionResponse(DataVersionInDB):
 
 class ArchiveResponse(ArchiveInDB):
     """Archive response model."""
+
     creator_username: Optional[str] = None
     rule_name: Optional[str] = None
 
@@ -394,6 +435,7 @@ class ArchiveResponse(ArchiveInDB):
 # Search and Filter Models
 class RetentionFilter(BaseModel):
     """Retention rule filter model."""
+
     tenant_id: Optional[int] = None
     resource_type: Optional[str] = None
     retention_policy: Optional[RetentionPolicy] = None
@@ -404,6 +446,7 @@ class RetentionFilter(BaseModel):
 
 class VersionFilter(BaseModel):
     """Data version filter model."""
+
     tenant_id: Optional[int] = None
     project_id: Optional[int] = None
     resource_type: Optional[str] = None
@@ -417,6 +460,7 @@ class VersionFilter(BaseModel):
 
 class ArchiveFilter(BaseModel):
     """Archive filter model."""
+
     tenant_id: Optional[int] = None
     archive_type: Optional[str] = None
     resource_type: Optional[str] = None
@@ -427,6 +471,7 @@ class ArchiveFilter(BaseModel):
 
 class RetentionAnalysis(BaseModel):
     """Retention analysis model."""
+
     tenant_id: int
     analysis_date: datetime
     total_items: int
@@ -438,6 +483,7 @@ class RetentionAnalysis(BaseModel):
 
 class VersionHistory(BaseModel):
     """Version history model."""
+
     resource_id: str
     resource_type: str
     versions: List[DataVersionResponse]
@@ -447,6 +493,7 @@ class VersionHistory(BaseModel):
 
 class StorageReport(BaseModel):
     """Storage usage report model."""
+
     tenant_id: int
     report_date: datetime
     total_storage_gb: float

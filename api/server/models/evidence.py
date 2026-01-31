@@ -5,7 +5,17 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, validator
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Boolean,
+    Text,
+    ForeignKey,
+    JSON,
+    Enum as SQLEnum,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -14,6 +24,7 @@ Base = declarative_base()
 
 class EvidenceType(str, Enum):
     """Evidence type enumeration."""
+
     SYSTEM_ACTION = "system_action"
     USER_ACTION = "user_action"
     DATA_CHANGE = "data_change"
@@ -27,6 +38,7 @@ class EvidenceType(str, Enum):
 
 class EvidenceStatus(str, Enum):
     """Evidence status enumeration."""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -36,6 +48,7 @@ class EvidenceStatus(str, Enum):
 
 class ApprovalStatus(str, Enum):
     """Approval status enumeration."""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -44,6 +57,7 @@ class ApprovalStatus(str, Enum):
 
 class Priority(str, Enum):
     """Priority enumeration."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -53,90 +67,94 @@ class Priority(str, Enum):
 # Database Models
 class Evidence(Base):
     """Evidence log model for audit trail."""
+
     __tablename__ = "evidence"
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
-    
+
     # Evidence metadata
     evidence_type = Column(SQLEnum(EvidenceType), nullable=False, index=True)
     status = Column(SQLEnum(EvidenceStatus), default=EvidenceStatus.PENDING, index=True)
     priority = Column(SQLEnum(Priority), default=Priority.MEDIUM, index=True)
-    
+
     # Event details
     title = Column(String(255), nullable=False)
     description = Column(Text)
     category = Column(String(100), index=True)
     tags = Column(JSON)  # List of tags
-    
+
     # Actor information
     actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     actor_role = Column(String(50))
     actor_ip = Column(String(45))
     actor_user_agent = Column(Text)
-    
+
     # Resource information
     resource_type = Column(String(50))  # entity, signal, score, config, etc.
     resource_id = Column(String(255))
     resource_data = Column(JSON)  # Before/after state
-    
+
     # Action details
     action = Column(String(100))
     action_result = Column(String(50))
     action_details = Column(JSON)
-    
+
     # Compliance and security
     compliance_rules = Column(JSON)  # Applicable compliance rules
     security_flags = Column(JSON)  # Security-related flags
     risk_score = Column(Integer, default=0)  # Risk score 0-100
-    
+
     # Workflow
     requires_approval = Column(Boolean, default=False)
     approval_workflow_id = Column(Integer, ForeignKey("approval_workflows.id"))
     approved_by = Column(Integer, ForeignKey("users.id"))
     approved_at = Column(DateTime)
     approval_notes = Column(Text)
-    
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at = Column(DateTime)
     archived_at = Column(DateTime)
-    
+
     # Relationships
     tenant = relationship("Tenant", backref="evidence")
     project = relationship("Project", backref="evidence")
     actor = relationship("User", foreign_keys=[actor_id], backref="evidence_created")
     approver = relationship("User", foreign_keys=[approved_by], backref="evidence_approved")
     approval_workflow = relationship("ApprovalWorkflow", backref="evidence")
-    attachments = relationship("EvidenceAttachment", back_populates="evidence", cascade="all, delete-orphan")
+    attachments = relationship(
+        "EvidenceAttachment", back_populates="evidence", cascade="all, delete-orphan"
+    )
 
 
 class ApprovalWorkflow(Base):
     """Approval workflow model."""
+
     __tablename__ = "approval_workflows"
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
-    
+
     # Workflow configuration
     name = Column(String(255), nullable=False)
     description = Column(Text)
     workflow_type = Column(String(50))  # evidence_type this workflow applies to
     is_active = Column(Boolean, default=True)
-    
+
     # Approval rules
     min_approvers = Column(Integer, default=1)
     required_roles = Column(JSON)  # List of roles that can approve
     approval_timeout_hours = Column(Integer, default=72)
     auto_approve_conditions = Column(JSON)
-    
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(Integer, ForeignKey("users.id"))
-    
+
     # Relationships
     tenant = relationship("Tenant", backref="approval_workflows")
     creator = relationship("User", backref="workflows_created")
@@ -145,25 +163,26 @@ class ApprovalWorkflow(Base):
 
 class ApprovalStep(Base):
     """Approval step model."""
+
     __tablename__ = "approval_steps"
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("approval_workflows.id"), nullable=False)
-    
+
     # Step configuration
     step_order = Column(Integer, nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    
+
     # Approval rules for this step
     approver_type = Column(String(50))  # role, user, group
     approver_config = Column(JSON)  # Specific approvers
     min_approvers = Column(Integer, default=1)
     is_parallel = Column(Boolean, default=False)  # Can approve in parallel
-    
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     workflow = relationship("ApprovalWorkflow", back_populates="steps")
     approvals = relationship("Approval", back_populates="step", cascade="all, delete-orphan")
@@ -171,23 +190,24 @@ class ApprovalStep(Base):
 
 class Approval(Base):
     """Individual approval record."""
+
     __tablename__ = "approvals"
 
     id = Column(Integer, primary_key=True, index=True)
     evidence_id = Column(Integer, ForeignKey("evidence.id"), nullable=False)
     workflow_id = Column(Integer, ForeignKey("approval_workflows.id"), nullable=False)
     step_id = Column(Integer, ForeignKey("approval_steps.id"), nullable=False)
-    
+
     # Approval details
     approver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     status = Column(SQLEnum(ApprovalStatus), default=ApprovalStatus.PENDING)
     decision = Column(String(20))  # approve, reject, abstain
     comments = Column(Text)
-    
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     decided_at = Column(DateTime)
-    
+
     # Relationships
     evidence = relationship("Evidence", backref="approvals")
     workflow = relationship("ApprovalWorkflow", backref="approvals")
@@ -197,11 +217,12 @@ class Approval(Base):
 
 class EvidenceAttachment(Base):
     """Evidence attachment model."""
+
     __tablename__ = "evidence_attachments"
 
     id = Column(Integer, primary_key=True, index=True)
     evidence_id = Column(Integer, ForeignKey("evidence.id"), nullable=False)
-    
+
     # File information
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255))
@@ -209,11 +230,11 @@ class EvidenceAttachment(Base):
     file_size = Column(Integer)
     file_path = Column(String(500))
     file_hash = Column(String(64))  # SHA-256 hash
-    
+
     # Metadata
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     evidence = relationship("Evidence", back_populates="attachments")
     uploader = relationship("User", backref="evidence_attachments")
@@ -222,6 +243,7 @@ class EvidenceAttachment(Base):
 # Pydantic Models for API
 class EvidenceBase(BaseModel):
     """Base evidence model."""
+
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
@@ -240,6 +262,7 @@ class EvidenceBase(BaseModel):
 
 class EvidenceCreate(EvidenceBase):
     """Evidence creation model."""
+
     evidence_type: EvidenceType
     tenant_id: int
     project_id: Optional[int] = None
@@ -248,6 +271,7 @@ class EvidenceCreate(EvidenceBase):
 
 class EvidenceUpdate(BaseModel):
     """Evidence update model."""
+
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
@@ -260,6 +284,7 @@ class EvidenceUpdate(BaseModel):
 
 class EvidenceInDB(EvidenceBase):
     """Evidence model as stored in database."""
+
     id: int
     evidence_type: EvidenceType
     tenant_id: int
@@ -286,6 +311,7 @@ class EvidenceInDB(EvidenceBase):
 
 class ApprovalWorkflowBase(BaseModel):
     """Base approval workflow model."""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     workflow_type: Optional[str] = None
@@ -298,11 +324,13 @@ class ApprovalWorkflowBase(BaseModel):
 
 class ApprovalWorkflowCreate(ApprovalWorkflowBase):
     """Approval workflow creation model."""
+
     tenant_id: int
 
 
 class ApprovalWorkflowUpdate(BaseModel):
     """Approval workflow update model."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     workflow_type: Optional[str] = None
@@ -315,6 +343,7 @@ class ApprovalWorkflowUpdate(BaseModel):
 
 class ApprovalWorkflowInDB(ApprovalWorkflowBase):
     """Approval workflow model as stored in database."""
+
     id: int
     tenant_id: int
     created_at: datetime
@@ -327,6 +356,7 @@ class ApprovalWorkflowInDB(ApprovalWorkflowBase):
 
 class ApprovalStepBase(BaseModel):
     """Base approval step model."""
+
     step_order: int = Field(..., ge=1)
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
@@ -338,11 +368,13 @@ class ApprovalStepBase(BaseModel):
 
 class ApprovalStepCreate(ApprovalStepBase):
     """Approval step creation model."""
+
     workflow_id: int
 
 
 class ApprovalStepInDB(ApprovalStepBase):
     """Approval step model as stored in database."""
+
     id: int
     workflow_id: int
     created_at: datetime
@@ -353,12 +385,14 @@ class ApprovalStepInDB(ApprovalStepBase):
 
 class ApprovalBase(BaseModel):
     """Base approval model."""
+
     decision: Optional[str] = Field(None, regex="^(approve|reject|abstain)$")
     comments: Optional[str] = None
 
 
 class ApprovalCreate(ApprovalBase):
     """Approval creation model."""
+
     evidence_id: int
     workflow_id: int
     step_id: int
@@ -366,12 +400,14 @@ class ApprovalCreate(ApprovalBase):
 
 class ApprovalUpdate(BaseModel):
     """Approval update model."""
+
     decision: str = Field(..., regex="^(approve|reject|abstain)$")
     comments: Optional[str] = None
 
 
 class ApprovalInDB(ApprovalBase):
     """Approval model as stored in database."""
+
     id: int
     evidence_id: int
     workflow_id: int
@@ -387,6 +423,7 @@ class ApprovalInDB(ApprovalBase):
 
 class EvidenceAttachmentBase(BaseModel):
     """Base evidence attachment model."""
+
     filename: str = Field(..., min_length=1, max_length=255)
     original_filename: Optional[str] = None
     file_type: Optional[str] = None
@@ -397,11 +434,13 @@ class EvidenceAttachmentBase(BaseModel):
 
 class EvidenceAttachmentCreate(EvidenceAttachmentBase):
     """Evidence attachment creation model."""
+
     evidence_id: int
 
 
 class EvidenceAttachmentInDB(EvidenceAttachmentBase):
     """Evidence attachment model as stored in database."""
+
     id: int
     evidence_id: int
     uploaded_by: Optional[int]
@@ -414,6 +453,7 @@ class EvidenceAttachmentInDB(EvidenceAttachmentBase):
 # Response Models
 class EvidenceResponse(EvidenceInDB):
     """Evidence response model."""
+
     actor_username: Optional[str] = None
     approver_username: Optional[str] = None
     workflow_name: Optional[str] = None
@@ -423,6 +463,7 @@ class EvidenceResponse(EvidenceInDB):
 
 class ApprovalWorkflowResponse(ApprovalWorkflowInDB):
     """Approval workflow response model."""
+
     creator_username: Optional[str] = None
     step_count: Optional[int] = 0
     evidence_count: Optional[int] = 0
@@ -430,12 +471,14 @@ class ApprovalWorkflowResponse(ApprovalWorkflowInDB):
 
 class ApprovalStepResponse(ApprovalStepInDB):
     """Approval step response model."""
+
     workflow_name: Optional[str] = None
     approval_count: Optional[int] = 0
 
 
 class ApprovalResponse(ApprovalInDB):
     """Approval response model."""
+
     approver_username: Optional[str] = None
     evidence_title: Optional[str] = None
     workflow_name: Optional[str] = None
@@ -444,6 +487,7 @@ class ApprovalResponse(ApprovalInDB):
 
 class EvidenceAttachmentResponse(EvidenceAttachmentInDB):
     """Evidence attachment response model."""
+
     uploader_username: Optional[str] = None
     evidence_title: Optional[str] = None
 
@@ -451,6 +495,7 @@ class EvidenceAttachmentResponse(EvidenceAttachmentInDB):
 # Search and Filter Models
 class EvidenceFilter(BaseModel):
     """Evidence filter model."""
+
     tenant_id: Optional[int] = None
     project_id: Optional[int] = None
     evidence_type: Optional[EvidenceType] = None
@@ -472,6 +517,7 @@ class EvidenceFilter(BaseModel):
 
 class EvidenceSearch(BaseModel):
     """Evidence search model."""
+
     query: Optional[str] = None
     filters: Optional[EvidenceFilter] = EvidenceFilter()
     sort_by: Optional[str] = "created_at"
@@ -482,6 +528,7 @@ class EvidenceSearch(BaseModel):
 
 class ComplianceReport(BaseModel):
     """Compliance report model."""
+
     tenant_id: int
     project_id: Optional[int] = None
     report_period: Dict[str, datetime]
@@ -497,6 +544,7 @@ class ComplianceReport(BaseModel):
 
 class AuditTrail(BaseModel):
     """Audit trail model."""
+
     evidence_id: int
     event_history: List[Dict[str, Any]]
     approval_history: List[Dict[str, Any]]

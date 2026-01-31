@@ -9,11 +9,12 @@ from datetime import datetime
 
 class EntityResponse(BaseModel):
     """Entity information in response."""
+
     id: str
     entity_type: str
     name: Optional[str] = None
     description: Optional[str] = None
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -26,11 +27,12 @@ class EntityResponse(BaseModel):
 
 class SignalResponse(BaseModel):
     """Signal in response."""
+
     name: str
     value: Any
     severity: Optional[str] = None
     timestamp: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -44,6 +46,7 @@ class SignalResponse(BaseModel):
 
 class ScoringResultResponse(BaseModel):
     """Scoring result response."""
+
     entity_id: str
     entity_type: str
     engine_name: str  # risk, exposure, drift
@@ -52,7 +55,7 @@ class ScoringResultResponse(BaseModel):
     factors: Dict[str, Any]
     signals: List[SignalResponse]
     timestamp: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -73,13 +76,14 @@ class ScoringResultResponse(BaseModel):
 
 class AgentResultResponse(BaseModel):
     """Agent execution result."""
+
     agent_name: str
     success: bool
     output: Dict[str, Any]
     error: Optional[str] = None
     duration_ms: float
     timestamp: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -98,6 +102,7 @@ class AgentResultResponse(BaseModel):
 
 class PipelineResultResponse(BaseModel):
     """Pipeline execution result."""
+
     pipeline_name: str
     entity_id: str
     results: Dict[str, AgentResultResponse]
@@ -105,7 +110,7 @@ class PipelineResultResponse(BaseModel):
     timestamp: datetime
     success_count: int
     total_count: int
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -131,6 +136,7 @@ class PipelineResultResponse(BaseModel):
 
 class AnalysisResultResponse(BaseModel):
     """Complete analysis result (all engines + agents)."""
+
     entity_id: str
     entity_type: str
     entity_info: EntityResponse
@@ -138,7 +144,7 @@ class AnalysisResultResponse(BaseModel):
     agent_results: Dict[str, AgentResultResponse]
     aggregate_risk_score: float = Field(..., ge=0.0, le=1.0)
     timestamp: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -159,10 +165,11 @@ class AnalysisResultResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     """Status response."""
+
     status: str
     message: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -175,11 +182,12 @@ class StatusResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response."""
+
     error: str
     status_code: int
     details: Optional[Dict[str, Any]] = None
     timestamp: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -193,11 +201,12 @@ class ErrorResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     """Configuration item response."""
+
     key: str
     value: Any
     description: Optional[str] = None
     updated_at: datetime
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -211,6 +220,7 @@ class ConfigResponse(BaseModel):
 
 class AuditLogResponse(BaseModel):
     """Audit log entry response."""
+
     timestamp: datetime
     agent: str
     action: str
@@ -220,7 +230,7 @@ class AuditLogResponse(BaseModel):
     duration_ms: Optional[float] = None
     error: Optional[str] = None
     user: Optional[str] = None
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -239,12 +249,13 @@ class AuditLogResponse(BaseModel):
 
 class PaginatedResponse(BaseModel):
     """Paginated response wrapper."""
+
     items: List[Any]
     total: int
     limit: int
     offset: int
     has_next: bool
-    
+
     class Config:
         schema_extra = {
             "example": {

@@ -8,7 +8,7 @@ describe('Project Setup', () => {
   });
 
   test('should be able to import store modules', () => {
-    expect(() => require('@/store')).not.toThrow();
+    expect(() => require('store')).not.toThrow();
   });
 
   test('should have basic math working', () => {

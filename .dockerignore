@@ -15,7 +15,8 @@ pip-delete-this-directory.txt
 .env
 
 # Poetry
-poetry.lock
+# (Include `poetry.lock` in Docker build context so the image can be
+# built deterministically. Removed from ignore.)
 
 # IDE
 .vscode

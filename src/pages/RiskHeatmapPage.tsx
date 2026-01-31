@@ -6,13 +6,13 @@ import {
   ArrowPathIcon,
   DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
-import { EntityType, SeverityLevel, EntityFilter } from '@/types';
-import { apiClient } from '@/api';
+import { EntityType, SeverityLevel, EntityFilter } from 'types';
+import { apiClient } from 'api';
 
 // Components
-import RiskHeatmap from '@/components/RiskHeatmap';
-import RiskDetails from '@/components/RiskDetails';
-import FilterPanel from '@/components/FilterPanel';
+import RiskHeatmap from 'components/RiskHeatmap';
+import RiskDetails from 'components/RiskDetails';
+import FilterPanel from 'components/FilterPanel';
 
 const RiskHeatmapPage: React.FC = () => {
   // State
@@ -353,11 +353,11 @@ const RiskHeatmapPage: React.FC = () => {
         {/* Risk Visualization */}
         <div className="flex-1 p-6">
           {viewMode === 'grid' ? (
-            <RiskHeatmap
-              data={filteredData}
-              onEntityClick={handleEntityClick}
-              selectedEntityId={selectedEntity?.id}
-            />
+                <RiskHeatmap
+                  data={filteredData}
+                  onEntityClick={handleEntityClick}
+                  selectedEntityId={selectedEntity?.id}
+                />
           ) : (
             <div className="card">
               <div className="card-body p-0">
@@ -435,10 +435,10 @@ const RiskHeatmapPage: React.FC = () => {
         {/* Entity Details Panel */}
         {selectedEntity && (
           <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
-            <RiskDetails
-              entity={selectedEntity}
-              onClose={() => setSelectedEntity(null)}
-            />
+                <RiskDetails
+                  risk={selectedEntity}
+                  onClose={() => setSelectedEntity(null)}
+                />
           </div>
         )}
       </div>

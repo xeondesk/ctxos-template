@@ -1,22 +1,22 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { useAuthStore } from '@/store';
-import { apiClient } from '@/api';
+import { useAuthStore } from 'store';
+import { apiClient } from 'api';
 
 // Layout Components
-import Layout from '@/components/Layout';
-import AuthLayout from '@/components/AuthLayout';
+import Layout from 'components/Layout';
+import AuthLayout from 'components/AuthLayout';
 
 // Page Components
-import LoginPage from '@/pages/LoginPage';
-import DashboardPage from '@/pages/DashboardPage';
-import GraphExplorerPage from '@/pages/GraphExplorerPage';
-import RiskHeatmapPage from '@/pages/RiskHeatmapPage';
-import EntitiesPage from '@/pages/EntitiesPage';
-import ScoringPage from '@/pages/ScoringPage';
-import AgentsPage from '@/pages/AgentsPage';
-import ConfigurationPage from '@/pages/ConfigurationPage';
+import LoginPage from 'pages/LoginPage';
+import DashboardPage from 'pages/DashboardPage';
+import GraphExplorerPage from 'pages/GraphExplorerPage';
+import RiskHeatmapPage from 'pages/RiskHeatmapPage';
+import EntitiesPage from 'pages/EntitiesPage';
+import ScoringPage from 'pages/ScoringPage';
+import AgentsPage from 'pages/AgentsPage';
+import ConfigurationPage from 'pages/ConfigurationPage';
 
 // Create React Query client
 const queryClient = new QueryClient({

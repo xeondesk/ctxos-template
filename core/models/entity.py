@@ -13,6 +13,7 @@ from datetime import datetime
 
 class EntityType(Enum):
     """Enumeration of entity types."""
+
     DOMAIN = "domain"
     IP_ADDRESS = "ip_address"
     HOST = "host"
@@ -31,6 +32,7 @@ class EntityType(Enum):
 
 class EntitySeverity(Enum):
     """Enumeration of entity severity levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -40,6 +42,7 @@ class EntitySeverity(Enum):
 
 class EntityStatus(Enum):
     """Enumeration of entity status."""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     UNKNOWN = "unknown"
@@ -50,7 +53,7 @@ class EntityStatus(Enum):
 class Entity:
     """
     Represents a security entity.
-    
+
     Attributes:
         id: Unique identifier (auto-generated UUID)
         name: Entity name/value
@@ -66,7 +69,7 @@ class Entity:
         tags: Classification tags
         description: Human-readable description
     """
-    
+
     name: str
     entity_type: EntityType
     source: str
@@ -80,14 +83,14 @@ class Entity:
     related_entities: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
     description: Optional[str] = None
-    
+
     def __post_init__(self):
         """Validate entity after initialization."""
         if not 0 <= self.confidence <= 1:
             raise ValueError("Confidence must be between 0 and 1")
         if self.last_seen_at is None:
             self.last_seen_at = self.discovered_at
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert entity to dictionary."""
         data = asdict(self)
@@ -97,12 +100,12 @@ class Entity:
         data["discovered_at"] = self.discovered_at.isoformat()
         data["last_seen_at"] = self.last_seen_at.isoformat() if self.last_seen_at else None
         return data
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Entity":
         """Create entity from dictionary."""
         data = data.copy()
-        
+
         # Convert string enums back to enum types
         if isinstance(data.get("entity_type"), str):
             data["entity_type"] = EntityType(data["entity_type"])
@@ -110,37 +113,37 @@ class Entity:
             data["severity"] = EntitySeverity(data["severity"])
         if isinstance(data.get("status"), str):
             data["status"] = EntityStatus(data["status"])
-        
+
         # Convert ISO format strings back to datetime
         if isinstance(data.get("discovered_at"), str):
             data["discovered_at"] = datetime.fromisoformat(data["discovered_at"])
         if isinstance(data.get("last_seen_at"), str):
             data["last_seen_at"] = datetime.fromisoformat(data["last_seen_at"])
-        
+
         return cls(**data)
-    
+
     def add_tag(self, tag: str) -> None:
         """Add a tag to the entity."""
         if tag not in self.tags:
             self.tags.append(tag)
-    
+
     def remove_tag(self, tag: str) -> None:
         """Remove a tag from the entity."""
         if tag in self.tags:
             self.tags.remove(tag)
-    
+
     def set_property(self, key: str, value: Any) -> None:
         """Set a custom property."""
         self.properties[key] = value
-    
+
     def get_property(self, key: str, default: Any = None) -> Any:
         """Get a custom property."""
         return self.properties.get(key, default)
-    
+
     def add_related_entity(self, entity_id: str) -> None:
         """Add a related entity."""
         if entity_id not in self.related_entities:
             self.related_entities.append(entity_id)
-    
+
     def __repr__(self) -> str:
         return f"Entity(name={self.name}, type={self.entity_type.value}, id={self.id})"

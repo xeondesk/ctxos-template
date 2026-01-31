@@ -13,6 +13,7 @@ from datetime import datetime
 
 class SignalType(Enum):
     """Enumeration of signal types."""
+
     DOMAIN_REGISTRATION = "domain_registration"
     DNS_RECORD = "dns_record"
     IP_WHOIS = "ip_whois"
@@ -30,6 +31,7 @@ class SignalType(Enum):
 
 class SignalSeverity(Enum):
     """Enumeration of signal severity levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -39,6 +41,7 @@ class SignalSeverity(Enum):
 
 class SignalConfidence(Enum):
     """Enumeration of signal confidence levels."""
+
     VERIFIED = "verified"
     HIGH = "high"
     MEDIUM = "medium"
@@ -50,7 +53,7 @@ class SignalConfidence(Enum):
 class Signal:
     """
     Represents a security signal.
-    
+
     Attributes:
         id: Unique identifier (auto-generated UUID)
         source: Source collector/system that produced the signal
@@ -66,7 +69,7 @@ class Signal:
         raw_data: Original raw data from source
         description: Human-readable description
     """
-    
+
     source: str
     signal_type: SignalType
     data: Dict[str, Any]
@@ -80,7 +83,7 @@ class Signal:
     metadata: Dict[str, Any] = field(default_factory=dict)
     raw_data: Optional[str] = None
     description: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert signal to dictionary."""
         signal_dict = asdict(self)
@@ -90,12 +93,12 @@ class Signal:
         signal_dict["timestamp"] = self.timestamp.isoformat()
         signal_dict["expiry"] = self.expiry.isoformat() if self.expiry else None
         return signal_dict
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Signal":
         """Create signal from dictionary."""
         data = data.copy()
-        
+
         # Convert string enums back to enum types
         if isinstance(data.get("signal_type"), str):
             data["signal_type"] = SignalType(data["signal_type"])
@@ -103,33 +106,33 @@ class Signal:
             data["severity"] = SignalSeverity(data["severity"])
         if isinstance(data.get("confidence"), str):
             data["confidence"] = SignalConfidence(data["confidence"])
-        
+
         # Convert ISO format strings back to datetime
         if isinstance(data.get("timestamp"), str):
             data["timestamp"] = datetime.fromisoformat(data["timestamp"])
         if isinstance(data.get("expiry"), str):
             data["expiry"] = datetime.fromisoformat(data["expiry"])
-        
+
         return cls(**data)
-    
+
     def is_expired(self) -> bool:
         """Check if signal has expired."""
         if self.expiry is None:
             return False
         return datetime.utcnow() > self.expiry
-    
+
     def add_tag(self, tag: str) -> None:
         """Add a tag to the signal."""
         if tag not in self.tags:
             self.tags.append(tag)
-    
+
     def set_metadata(self, key: str, value: Any) -> None:
         """Set metadata field."""
         self.metadata[key] = value
-    
+
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata field."""
         return self.metadata.get(key, default)
-    
+
     def __repr__(self) -> str:
         return f"Signal(type={self.signal_type.value}, source={self.source}, id={self.id})"

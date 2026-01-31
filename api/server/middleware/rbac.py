@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Role(str, Enum):
     """User roles."""
+
     ADMIN = "admin"
     ANALYST = "analyst"
     VIEWER = "viewer"
@@ -23,6 +24,7 @@ class Role(str, Enum):
 
 class Permission(str, Enum):
     """Permission types."""
+
     READ = "read"
     WRITE = "write"
     DELETE = "delete"
@@ -38,20 +40,32 @@ class Permission(str, Enum):
 # Role-based permissions mapping
 ROLE_PERMISSIONS: Dict[Role, Set[Permission]] = {
     Role.ADMIN: {
-        Permission.READ, Permission.WRITE, Permission.DELETE, 
-        Permission.MANAGE_USERS, Permission.MANAGE_CONFIG,
-        Permission.VIEW_AUDIT_LOGS, Permission.MANAGE_RULES,
-        Permission.RUN_AGENTS, Permission.RUN_PIPELINES, Permission.MANAGE_PIPELINES,
+        Permission.READ,
+        Permission.WRITE,
+        Permission.DELETE,
+        Permission.MANAGE_USERS,
+        Permission.MANAGE_CONFIG,
+        Permission.VIEW_AUDIT_LOGS,
+        Permission.MANAGE_RULES,
+        Permission.RUN_AGENTS,
+        Permission.RUN_PIPELINES,
+        Permission.MANAGE_PIPELINES,
     },
     Role.ANALYST: {
-        Permission.READ, Permission.WRITE, Permission.RUN_AGENTS, 
-        Permission.RUN_PIPELINES, Permission.VIEW_AUDIT_LOGS,
+        Permission.READ,
+        Permission.WRITE,
+        Permission.RUN_AGENTS,
+        Permission.RUN_PIPELINES,
+        Permission.VIEW_AUDIT_LOGS,
     },
     Role.VIEWER: {
-        Permission.READ, Permission.VIEW_AUDIT_LOGS,
+        Permission.READ,
+        Permission.VIEW_AUDIT_LOGS,
     },
     Role.API_CLIENT: {
-        Permission.READ, Permission.RUN_AGENTS, Permission.RUN_PIPELINES,
+        Permission.READ,
+        Permission.RUN_AGENTS,
+        Permission.RUN_PIPELINES,
     },
 }
 
@@ -65,7 +79,6 @@ ENDPOINT_PERMISSIONS: Dict[str, Set[Permission]] = {
     "/api/v1/score/aggregate": {Permission.READ},
     "/api/v1/score/compare": {Permission.READ},
     "/api/v1/score/status": {Permission.READ},
-    
     # Agent endpoints
     "/api/v1/agents/run": {Permission.RUN_AGENTS},
     "/api/v1/agents/pipeline": {Permission.RUN_PIPELINES},
@@ -78,12 +91,10 @@ ENDPOINT_PERMISSIONS: Dict[str, Set[Permission]] = {
     "/api/v1/agents/audit-logs": {Permission.VIEW_AUDIT_LOGS},
     "/api/v1/agents/metrics": {Permission.READ},
     "/api/v1/agents/health": {Permission.READ},
-    
     # Config endpoints
     "/api/v1/config": {Permission.READ},
     "/api/v1/config/update": {Permission.MANAGE_CONFIG},
     "/api/v1/config/rules": {Permission.MANAGE_RULES},
-    
     # User management endpoints
     "/api/v1/users": {Permission.MANAGE_USERS},
     "/api/v1/users/create": {Permission.MANAGE_USERS},
@@ -94,28 +105,28 @@ ENDPOINT_PERMISSIONS: Dict[str, Set[Permission]] = {
 
 class RBACMiddleware(BaseHTTPMiddleware):
     """RBAC middleware for request authorization."""
-    
+
     def __init__(self, app):
         super().__init__(app)
         self.logger = logging.getLogger(__name__)
-    
+
     async def dispatch(self, request: Request, call_next):
         """Process request with RBAC checks."""
         # Skip RBAC for public endpoints
         public_paths = {"/", "/health", "/api/docs", "/api/openapi.json", "/api/v1/auth/login"}
         if request.url.path in public_paths:
             return await call_next(request)
-        
+
         # Skip RBAC for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
-        
+
         # Extract token from Authorization header
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             self.logger.warning(f"No auth header for {request.method} {request.url.path}")
             return await call_next(request)  # Let endpoint handle auth
-        
+
         # For now, just pass through - actual auth is handled by dependencies
         return await call_next(request)
 
@@ -125,19 +136,19 @@ def require_permission(
     token_data: TokenData = Depends(),
 ) -> TokenData:
     """Dependency to require specific permission.
-    
+
     Args:
         required_permission: Required permission
         token_data: Token data from auth
-        
+
     Returns:
         TokenData if authorized
-        
+
     Raises:
         HTTPException: If not authorized
     """
     user_permissions = ROLE_PERMISSIONS.get(Role(token_data.role), set())
-    
+
     if required_permission not in user_permissions:
         logger.warning(
             f"Permission denied: user {token_data.username} ({token_data.role}) "
@@ -147,7 +158,7 @@ def require_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Permission denied: {required_permission} required",
         )
-    
+
     return token_data
 
 
@@ -156,14 +167,14 @@ def require_role(
     token_data: TokenData = Depends(),
 ) -> TokenData:
     """Dependency to require specific role.
-    
+
     Args:
         required_role: Required role
         token_data: Token data from auth
-        
+
     Returns:
         TokenData if authorized
-        
+
     Raises:
         HTTPException: If not authorized
     """
@@ -176,7 +187,7 @@ def require_role(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Role required: {required_role.value}",
         )
-    
+
     return token_data
 
 
@@ -185,14 +196,14 @@ def require_role_in(
     token_data: TokenData = Depends(),
 ) -> TokenData:
     """Dependency to require one of multiple roles.
-    
+
     Args:
         required_roles: List of allowed roles
         token_data: Token data from auth
-        
+
     Returns:
         TokenData if authorized
-        
+
     Raises:
         HTTPException: If not authorized
     """
@@ -206,7 +217,7 @@ def require_role_in(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"One of these roles required: {', '.join(allowed_role_values)}",
         )
-    
+
     return token_data
 
 
@@ -215,19 +226,19 @@ def require_any_permission(
     token_data: TokenData = Depends(),
 ) -> TokenData:
     """Dependency to require any of multiple permissions.
-    
+
     Args:
         required_permissions: List of allowed permissions
         token_data: Token data from auth
-        
+
     Returns:
         TokenData if authorized
-        
+
     Raises:
         HTTPException: If not authorized
     """
     user_permissions = ROLE_PERMISSIONS.get(Role(token_data.role), set())
-    
+
     if not any(perm in user_permissions for perm in required_permissions):
         required_perm_names = [perm.value for perm in required_permissions]
         logger.warning(
@@ -238,16 +249,16 @@ def require_any_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"One of these permissions required: {', '.join(required_perm_names)}",
         )
-    
+
     return token_data
 
 
 def get_permission_level(role: str) -> int:
     """Get numeric permission level for a role.
-    
+
     Args:
         role: Role name
-        
+
     Returns:
         Permission level (higher = more permissions)
     """
@@ -266,75 +277,75 @@ def check_endpoint_permission(
     token_data: TokenData,
 ) -> bool:
     """Check if token has permission for endpoint.
-    
+
     Args:
         request_path: Request path
         method: HTTP method
         token_data: Token data
-        
+
     Returns:
         True if authorized, False otherwise
     """
     # Get required permissions for endpoint
     endpoint_perms = ENDPOINT_PERMISSIONS.get(request_path, set())
-    
+
     # Check write permissions for write methods
     if method in {"POST", "PUT", "DELETE", "PATCH"} and Permission.WRITE not in endpoint_perms:
         endpoint_perms.add(Permission.WRITE)
-    
+
     user_permissions = ROLE_PERMISSIONS.get(Role(token_data.role), set())
-    
+
     return any(perm in user_permissions for perm in endpoint_perms)
 
 
 class AuthorizationService:
     """Service for authorization checks."""
-    
+
     @staticmethod
     def check_permission(
         token_data: TokenData,
         required_permission: Permission,
     ) -> bool:
         """Check if token has required permission.
-        
+
         Args:
             token_data: Token data
             required_permission: Required permission
-            
+
         Returns:
             True if authorized, False otherwise
         """
         user_permissions = ROLE_PERMISSIONS.get(Role(token_data.role), set())
         return required_permission in user_permissions
-    
+
     @staticmethod
     def check_role(
         token_data: TokenData,
         required_role: str,
     ) -> bool:
         """Check if token has required role.
-        
+
         Args:
             token_data: Token data
             required_role: Required role
-            
+
         Returns:
             True if role matches, False otherwise
         """
         return token_data.role == required_role
-    
+
     @staticmethod
     def get_permissions(token_data: TokenData) -> Set[Permission]:
         """Get all permissions for token.
-        
+
         Args:
             token_data: Token data
-            
+
         Returns:
             Set of permissions
         """
         return ROLE_PERMISSIONS.get(Role(token_data.role), set())
-    
+
     @staticmethod
     def can_access_resource(
         token_data: TokenData,
@@ -342,12 +353,12 @@ class AuthorizationService:
         action: str,
     ) -> bool:
         """Check if user can access resource with specific action.
-        
+
         Args:
             token_data: Token data
             resource_type: Type of resource (e.g., "agent", "config", "user")
             action: Action to perform (e.g., "read", "write", "delete")
-            
+
         Returns:
             True if authorized, False otherwise
         """
@@ -367,27 +378,27 @@ class AuthorizationService:
             ("pipeline", "run"): Permission.RUN_PIPELINES,
             ("pipeline", "manage"): Permission.MANAGE_PIPELINES,
         }
-        
+
         required_permission = permission_map.get((resource_type, action))
         if not required_permission:
             # Default to read permission for unknown combinations
             required_permission = Permission.READ
-        
+
         return AuthorizationService.check_permission(token_data, required_permission)
-    
+
     @staticmethod
     def get_user_capabilities(token_data: TokenData) -> Dict[str, Any]:
         """Get user capabilities summary.
-        
+
         Args:
             token_data: Token data
-            
+
         Returns:
             Dictionary of user capabilities
         """
         permissions = AuthorizationService.get_permissions(token_data)
         role_level = get_permission_level(token_data.role)
-        
+
         return {
             "user_id": token_data.user_id,
             "username": token_data.username,
@@ -415,7 +426,7 @@ def log_access_attempt(
     reason: Optional[str] = None,
 ):
     """Log access attempt for audit purposes.
-    
+
     Args:
         request_path: Request path
         method: HTTP method
@@ -427,8 +438,7 @@ def log_access_attempt(
         logger.info(
             f"Access {'granted' if success else 'denied'}: "
             f"user={token_data.username}({token_data.role}) "
-            f"method={method} path={request_path}"
-            + (f" reason={reason}" if reason else "")
+            f"method={method} path={request_path}" + (f" reason={reason}" if reason else "")
         )
     else:
         logger.info(

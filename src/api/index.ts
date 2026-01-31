@@ -15,7 +15,7 @@ import {
   PaginatedResponse,
   Entity,
   Context
-} from '@/types';
+} from 'types';
 
 class ApiClient {
   private client: AxiosInstance;

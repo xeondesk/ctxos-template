@@ -12,6 +12,7 @@ from uuid import uuid4
 
 class EngineStatus(Enum):
     """Engine operational status."""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     ERROR = "error"
@@ -21,6 +22,7 @@ class EngineStatus(Enum):
 @dataclass
 class ScoringResult:
     """Result from engine scoring operation."""
+
     engine_name: str
     entity_id: str
     score: float  # 0-100
@@ -66,7 +68,7 @@ class BaseEngine(ABC):
 
     def __init__(self, name: str, version: str = "1.0.0", enabled: bool = True):
         """Initialize engine.
-        
+
         Args:
             name: Engine name
             version: Engine version
@@ -85,11 +87,11 @@ class BaseEngine(ABC):
     @abstractmethod
     def score(self, entity: Any, context: Any = None) -> ScoringResult:
         """Score an entity.
-        
+
         Args:
             entity: Entity to score
             context: Optional context for additional data
-            
+
         Returns:
             ScoringResult with score and analysis
         """
@@ -98,10 +100,10 @@ class BaseEngine(ABC):
     @abstractmethod
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate engine configuration.
-        
+
         Args:
             config: Configuration to validate
-            
+
         Returns:
             True if valid, False otherwise
         """
@@ -109,10 +111,10 @@ class BaseEngine(ABC):
 
     def configure(self, config: Dict[str, Any]) -> bool:
         """Configure engine with provided config.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             True if configuration successful
         """
@@ -151,12 +153,12 @@ class ScoringUtils:
     @staticmethod
     def normalize_score(value: float, min_val: float = 0, max_val: float = 100) -> float:
         """Normalize value to 0-100 scale.
-        
+
         Args:
             value: Value to normalize
             min_val: Minimum expected value
             max_val: Maximum expected value
-            
+
         Returns:
             Normalized score 0-100
         """
@@ -168,10 +170,10 @@ class ScoringUtils:
     @staticmethod
     def score_to_severity(score: float) -> str:
         """Convert score to severity level.
-        
+
         Args:
             score: Score 0-100
-            
+
         Returns:
             Severity level: critical, high, medium, low, info
         """
@@ -189,34 +191,34 @@ class ScoringUtils:
     @staticmethod
     def aggregate_scores(scores: List[float], weights: Optional[List[float]] = None) -> float:
         """Aggregate multiple scores.
-        
+
         Args:
             scores: List of scores
             weights: Optional weights for each score
-            
+
         Returns:
             Aggregated score
         """
         if not scores:
             return 0.0
-        
+
         if weights is None:
             return sum(scores) / len(scores)
-        
+
         total_weight = sum(weights)
         if total_weight == 0:
             return 0.0
-        
+
         return sum(s * w for s, w in zip(scores, weights)) / total_weight
 
     @staticmethod
     def calculate_confidence(data_points: int, max_points: int = 100) -> float:
         """Calculate confidence score based on data points.
-        
+
         Args:
             data_points: Number of data points
             max_points: Maximum data points for full confidence
-            
+
         Returns:
             Confidence 0-1
         """

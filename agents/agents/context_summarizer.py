@@ -76,9 +76,7 @@ class ContextSummarizer(BaseAgentAsync):
             }
 
             # Top risks
-            top_risks = await self._extract_top_risks(
-                entity, signals, scoring_result
-            )
+            top_risks = await self._extract_top_risks(entity, signals, scoring_result)
             summary["top_risks"] = top_risks
 
             # Exposure highlights
@@ -88,15 +86,11 @@ class ContextSummarizer(BaseAgentAsync):
             summary["exposure_highlights"] = exposure_highlights
 
             # Configuration anomalies
-            anomalies = await self._extract_anomalies(
-                entity, signals, scoring_result
-            )
+            anomalies = await self._extract_anomalies(entity, signals, scoring_result)
             summary["configuration_anomalies"] = anomalies
 
             # Overall assessment
-            assessment = await self._generate_assessment(
-                top_risks, exposure_highlights, anomalies
-            )
+            assessment = await self._generate_assessment(top_risks, exposure_highlights, anomalies)
             summary["overall_assessment"] = assessment
 
             # Signal statistics
@@ -211,9 +205,7 @@ class ContextSummarizer(BaseAgentAsync):
             if signal.signal_type in exposure_signal_types:
                 exposures.append(
                     {
-                        "type": exposure_signal_types.get(
-                            signal.signal_type, signal.signal_type
-                        ),
+                        "type": exposure_signal_types.get(signal.signal_type, signal.signal_type),
                         "source": signal.source,
                         "description": signal.description or "",
                         "timestamp": signal.timestamp.isoformat(),
@@ -263,9 +255,7 @@ class ContextSummarizer(BaseAgentAsync):
             if signal.signal_type in anomaly_signal_types:
                 anomalies.append(
                     {
-                        "type": anomaly_signal_types.get(
-                            signal.signal_type, signal.signal_type
-                        ),
+                        "type": anomaly_signal_types.get(signal.signal_type, signal.signal_type),
                         "source": signal.source,
                         "description": signal.description or "",
                         "timestamp": signal.timestamp.isoformat(),
@@ -293,9 +283,7 @@ class ContextSummarizer(BaseAgentAsync):
         # Determine priority based on findings
         priority = "LOW"
         critical_count = sum(
-            1
-            for risk in top_risks
-            if risk.get("severity") in ["CRITICAL", "HIGH"]
+            1 for risk in top_risks if risk.get("severity") in ["CRITICAL", "HIGH"]
         )
 
         if critical_count >= 3:

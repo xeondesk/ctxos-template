@@ -56,7 +56,7 @@ env-file: ## Create .env file from template
 dev: ## Start development environment (API + Frontend)
 	@echo "🚀 Starting development environment..."
 	@echo "📊 Starting services with Docker Compose..."
-	docker-compose -f docker-compose.dev.yml up -d postgres redis elasticsearch
+	docker-compose -f docker-compose.dev.yml up -d postgres-dev redis-dev elasticsearch-dev
 	@echo "🐍 Starting Python API server..."
 	poetry run python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000 &
 	@echo "⚛️ Starting frontend development server..."
@@ -77,7 +77,7 @@ dev-frontend: ## Start only frontend
 
 dev-services: ## Start only backend services (PostgreSQL, Redis, Elasticsearch)
 	@echo "📊 Starting backend services..."
-	docker-compose -f docker-compose.dev.yml up -d postgres redis elasticsearch
+	docker-compose -f docker-compose.dev.yml up -d postgres-dev redis-dev elasticsearch-dev
 
 stop: ## Stop all development services
 	@echo "🛑 Stopping development environment..."
@@ -93,11 +93,11 @@ restart: ## Restart development environment
 # =============================================================================
 # DATABASE
 # =============================================================================
-
-init-db: ## Initialize database with schema and seed data
+: ## Initialize database with schema and seed data
+init-db: ## Initialize database (migrations + seed data)
 	@echo "🗄️ Initializing database..."
 	@echo "📊 Starting PostgreSQL..."
-	docker-compose -f docker-compose.dev.yml up -d postgres
+	docker-compose -f docker-compose.dev.yml up -d postgres-dev
 	sleep 5
 	@echo "🔧 Running database migrations..."
 	poetry run alembic upgrade head || echo "Alembic not configured, skipping migrations..."
@@ -107,7 +107,7 @@ init-db: ## Initialize database with schema and seed data
 
 reset-db: ## Reset database (drop and recreate)
 	@echo "💥 Resetting database..."
-	docker-compose -f docker-compose.dev.yml down postgres
+	docker-compose -f docker-compose.dev.yml down
 	docker volume rm ctxos-template_postgres_dev_data || true
 	make init-db
 	@echo "✅ Database reset complete!"

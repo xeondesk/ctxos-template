@@ -6,13 +6,13 @@ import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { apiClient } from '@/api';
+import { apiClient } from 'api';
 
 // Components
-import StatCard from '@/components/StatCard';
-import RiskChart from '@/components/RiskChart';
-import RecentActivity from '@/components/RecentActivity';
-import TopRisks from '@/components/TopRisks';
+import StatCard from 'components/StatCard';
+import RiskChart from 'components/RiskChart';
+import RecentActivity from 'components/RecentActivity';
+import TopRisks from 'components/TopRisks';
 
 const DashboardPage: React.FC = () => {
   // Fetch dashboard data

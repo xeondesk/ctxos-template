@@ -11,7 +11,7 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth, useAuthActions, useCurrentUser } from '@/store';
+import { useAuth, useAuthActions, useCurrentUser } from 'store';
 
 const Layout: React.FC = () => {
   const navigate = useNavigate();

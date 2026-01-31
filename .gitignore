@@ -9,3 +9,9 @@ npm-debug.log
 yarn-error.log
 *.log
 *.tsbuildinfo
+
+# Python-specific ignores
+__pycache__/
+*.pyc
+
+node_modules/
